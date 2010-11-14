@@ -1,0 +1,10 @@
+{
+module JavaletteParser where
+import JavaletteLexer
+}
+
+%name Javalette
+%tokentype { Token }
+%error { parseError }
+
+

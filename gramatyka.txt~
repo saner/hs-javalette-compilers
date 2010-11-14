@@ -1,0 +1,70 @@
+Program ::= Funcion+
+Funcion ::= Type Ident "(" FunctionArgs? ")"  StmtComp
+FunctionArgs ::= Type Ident ["," Type Ident]*
+
+Stmt ::= StmtComp | StmtDecl | StmtAssig | StmtIf | StmtWhile | StmtFor | StmtReturn | StmtExp
+StmtComp ::= "{" Stmt* "}"
+StmtDecl ::= Type DeclList ";"
+DeclList ::= Decl
+			| ListDecl "," Decl
+Decl ::= Ident ["=" Exp]?
+StmtAssig ::=  Assig ";"
+Assig ::= Ident "=" Exp
+		| Ident "++"
+		| Ident "--"
+StmtIf ::= "if" "(" Exp ")" Stmt ["else" Stmt ]?
+StmtWhile ::= "while" "(" Exp ")" Stmt
+StmtFor ::= "for" "(" Assig ";" Exp ";" Assig ")" Stmt
+StmtReturn ::= "return" Exp? ";"
+StmtExp ::= Exp ";"
+
+Type ::= "int" | "double" | "boolean" | "void"
+
+Exp ::= ExpAnd
+	| ExpOr "||" ExpAnd
+ExpAnd ::= ExpComp | ExpAnd "&&" ExpComp
+ExpComp ::= ExpRel | ExpComp "==" ExpRel
+			| ExpComp "!=" ExpRel
+ExpRel ::= ExpAddi
+		| ExpRel "<" ExpAddi
+		| ExpRel ">" ExpAddi
+		| ExpRel "<=" ExpAddi
+		| ExpRel ">=" ExpAddi
+ExpAddi ::= ExpMulti
+		| ExpAddi "+" ExpMulti
+		| ExpAddi "-" ExpMulti
+ExpMult ::= ExpOneArg
+		| ExpMulti "*" ExpOneArg
+		| ExpMulti "/" ExpOneArg
+		| ExpMulti "%" ExpOneArg
+ExpOneArg ::= ExpPostfix
+		| "!" ExpOneArg
+		| "+" ExpOneArg
+		| "-" ExpOneArg
+ExpPostfix ::= ExpSimp
+		| ExpRunFunc
+ExpRunFunc ::= Ident "(" ExpList? ")"
+ExpList ::= Exp ["," Exp]*
+ExpSimp ::= Ident
+		| Literal
+		| "(" Exp ")"
+
+# literaly
+Literal ::= LitInteger | LitDouble | LitBoolean | LitString
+
+# Litera³-ca³kowitoliczbowy jest niepustym ci¹giem cyfr.
+# Litera³-zmiennopozycyjny oznacza liczby z kropk¹ dziesiêtn¹ i ewentualnym wyk³adnikiem (jak w C).
+# Litera³-napisowy jest ci¹giem znaków ASCII pomiêdzy znakami cudzys³owu (mo¿liwoœæ eskejpowania). Mo¿e wyst¹piæ jedynie jako argument funkcji printString.
+# Identyfikator jest niepustym ci¹giem cyfr, liter i znaków "_" zaczynaj¹cym siê od litery i nie bêd¹cym s³owem kluczowym.
+# W programie mog¹ wyst¹piæ komentarze. S¹ zawarte pomiêdzy "/*" i "*/"; obejmuj¹ tekst od "//" do koñca linii lub od "#" do koñca linii (traktujemy dyrektywy preprocesora C jak komentarze).
+
+
+# predefiniowane funckje
+#void printInt(int)
+#void printDouble(double)
+#void printString(string)
+#void error()
+#int readInt()
+#double readDouble()
+#Funkcja error wypisuje runtime error i koñczy wykonywanie programu.
+
