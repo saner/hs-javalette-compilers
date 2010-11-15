@@ -118,9 +118,9 @@ ExpMulti : ExpOneArg { $1 }
 		| ExpMulti "/" ExpOneArg { ExpMulti MultiDiv $1 $3 }
 		| ExpMulti "%" ExpOneArg { ExpMulti MultiMod $1 $3 }
 ExpOneArg : ExpPostfix { $1 }
-		| "!" ExpOneArg { ExpOneArg OneArgNot }
-		| "+" ExpOneArg { ExpOneArg OneArgPlus }
-		| "-" ExpOneArg { ExpOneArg OneArgMinus }
+		| "!" ExpOneArg { ExpOneArg OneArgNot $2 }
+		| "+" ExpOneArg { ExpOneArg OneArgPlus $2 }
+		| "-" ExpOneArg { ExpOneArg OneArgMinus $2 }
 ExpPostfix : ExpSimp { $1 }
 		| ExpCallFunc { $1 }
 ExpCallFunc : Ident "(" ")" { ExpCallFunc $1 [] } 

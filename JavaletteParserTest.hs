@@ -6,7 +6,7 @@ import JavaletteParser
 
 main = do 
 	inStr <- getContents 
-	let parseTree = javaletterParse (alexScanTokens inStr) 
+	let parseTree = javaletteParse (alexScanTokens inStr) 
 	putStrLn ("parseTree:" ++ show(parseTree)) 
 	print "done" 
 

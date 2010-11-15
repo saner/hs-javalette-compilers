@@ -1573,25 +1573,28 @@ happyReduction_60 (HappyAbsSyn31  happy_var_1)
 happyReduction_60 _  = notHappyAtAll 
 
 happyReduce_61 = happySpecReduce_2  30 happyReduction_61
-happyReduction_61 _
+happyReduction_61 (HappyAbsSyn30  happy_var_2)
 	_
 	 =  HappyAbsSyn30
-		 (ExpOneArg OneArgNot
+		 (ExpOneArg OneArgNot happy_var_2
 	)
+happyReduction_61 _ _  = notHappyAtAll 
 
 happyReduce_62 = happySpecReduce_2  30 happyReduction_62
-happyReduction_62 _
+happyReduction_62 (HappyAbsSyn30  happy_var_2)
 	_
 	 =  HappyAbsSyn30
-		 (ExpOneArg OneArgPlus
+		 (ExpOneArg OneArgPlus happy_var_2
 	)
+happyReduction_62 _ _  = notHappyAtAll 
 
 happyReduce_63 = happySpecReduce_2  30 happyReduction_63
-happyReduction_63 _
+happyReduction_63 (HappyAbsSyn30  happy_var_2)
 	_
 	 =  HappyAbsSyn30
-		 (ExpOneArg OneArgMinus
+		 (ExpOneArg OneArgMinus happy_var_2
 	)
+happyReduction_63 _ _  = notHappyAtAll 
 
 happyReduce_64 = happySpecReduce_1  31 happyReduction_64
 happyReduction_64 (HappyAbsSyn34  happy_var_1)

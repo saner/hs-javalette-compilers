@@ -151,7 +151,7 @@ data Type = TypeInt
 
 data Program = Program [Function]
 			deriving (Show, Eq)
-data Function = Function Ident Type [FunctionArg] [Stmt]
+data Function = Function Ident Type [FunctionArg] Stmt
 			deriving (Show, Eq)
 data FunctionArg = FunctionArg Type Ident
 			deriving (Show, Eq)
