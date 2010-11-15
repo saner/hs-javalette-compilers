@@ -1210,7 +1210,7 @@ happyReduction_17 _
 	(HappyAbsSyn11  happy_var_2)
 	_
 	 =  HappyAbsSyn10
-		 (happy_var_2
+		 (StmtList happy_var_2
 	)
 happyReduction_17 _ _ _  = notHappyAtAll 
 
@@ -1780,7 +1780,7 @@ data Type = TypeInt
 
 data Program = Program [Function]
 			deriving (Show, Eq)
-data Function = Function Ident Type [FunctionArg] [Stmt]
+data Function = Function Ident Type [FunctionArg] Stmt
 			deriving (Show, Eq)
 data FunctionArg = FunctionArg Type Ident
 			deriving (Show, Eq)

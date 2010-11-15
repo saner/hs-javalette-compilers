@@ -3,7 +3,7 @@ module JavaletteParser where
 import JavaletteLexer
 }
 
-%name Javalette
+%name javaletteParse
 %tokentype { Token }
 %error { parseError }
 
@@ -64,7 +64,7 @@ FunctionArgs : FunctionArg { [ $1 ]  }
 			 | FunctionArg "," FunctionArgs { $1 : $3 }
 			 |	{ [] }
 FunctionArg : Type Ident { FunctionArg $1 $2 }
-Stmt :StmtComp	{ $1 }
+Stmt : StmtComp	{ $1 }
 	| StmtDecl { $1 }
 	| StmtAssig { $1 }
 	| StmtIf { $1 }
@@ -74,10 +74,10 @@ Stmt :StmtComp	{ $1 }
 	| StmtExp { $1 }
 StmtComp : "{" StmtList "}"	{ StmtList $2 }
 StmtList : Stmt StmtList { $1 : $2 }
-		 |  { [] }
+		 | { [] }
 StmtDecl : Type DeclList ";" { StmtVarsDecl $1 $2 }
 DeclList : Decl { [ $1 ] }
-		 | Decl "," DeclList { $1 : $2 }
+		 | Decl "," DeclList { $1 : $3 }
 Decl : Ident { Decl $1 ExpEmpty  }
 	 | Ident "=" Exp { Decl $1 $3 }
 StmtAssig : Assig ";" { StmtAssig $1 }
@@ -123,8 +123,8 @@ ExpOneArg : ExpPostfix { $1 }
 		| "-" ExpOneArg { ExpOneArg OneArgMinus }
 ExpPostfix : ExpSimp { $1 }
 		| ExpCallFunc { $1 }
-ExpCallFunc : Ident "(" ")" { ExpCallFunc $1 ExpEmpty } 
-		   | Ident "(" ExpList ")" { ExpCallFun $1 $3 }
+ExpCallFunc : Ident "(" ")" { ExpCallFunc $1 [] } 
+		   | Ident "(" ExpList ")" { ExpCallFunc $1 $3 }
 ExpList : Exp "," ExpList { $1 : $3 }
 		|  { [] }
 ExpSimp : Ident { ExpVar $1 }
@@ -151,7 +151,7 @@ data Type = TypeInt
 
 data Program = Program [Function]
 			deriving (Show, Eq)
-data Function = Function Ident Type [FunctionArg] [Stmt]
+data Function = Function Ident Type [FunctionArg] Stmt
 			deriving (Show, Eq)
 data FunctionArg = FunctionArg Type Ident
 			deriving (Show, Eq)
@@ -173,11 +173,17 @@ data Assig = AssigEq Ident Exp
 			deriving (Show, Eq)
 
 data Bin = BinAnd | BinOr
+		deriving (Show, Eq)
 data Comp = CompEq | CompNotEq
+		deriving (Show, Eq)
 data Rel = RelLe | RelLeEq | RelGt | RelGtEq
+		deriving (Show, Eq)
 data Addi = AddiPlus | AddiMinus
+		deriving (Show, Eq)
 data Multi = MultiMulti | MultiDiv | MultiMod
+		deriving (Show, Eq)
 data OneArg = OneArgNot | OneArgPlus | OneArgMinus
+		deriving (Show, Eq)
 
 data Exp = ExpEmpty
 		| ExpList [Exp]
@@ -187,7 +193,7 @@ data Exp = ExpEmpty
 		| ExpAddi Addi Exp Exp
 		| ExpMulti Multi Exp Exp
 		| ExpOneArg OneArg Exp
-		| ExpCallFun Ident ExpList
+		| ExpCallFunc Ident [Exp]
 		| ExpVar Ident
 		| ExpExp Exp
 		| ExpInt Int

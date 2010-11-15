@@ -18,7 +18,7 @@ terminal "readDouble" is unused
 -----------------------------------------------------------------------------
 Grammar
 -----------------------------------------------------------------------------
-	%start_Javalette -> Program                        (0)
+	%start_javaletteParse -> Program                   (0)
 	Program -> FunctionList                            (1)
 	FunctionList -> Function FunctionList              (2)
 	FunctionList ->                                    (3)
@@ -147,7 +147,7 @@ Terminals
 -----------------------------------------------------------------------------
 Non-terminals
 -----------------------------------------------------------------------------
-	%start_Javalette rule  0
+	%start_javaletteParse rule  0
 	Program         rule  1
 	FunctionList    rules 2, 3
 	Function        rule  4
@@ -268,7 +268,7 @@ State 8
 
 State 9
 
-	%start_Javalette -> Program .                       (rule 0)
+	%start_javaletteParse -> Program .                  (rule 0)
 
 	%eof           accept
 
