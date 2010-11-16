@@ -56,7 +56,7 @@ Function : Type Ident "(" FunctionArgs ")" "{" StmtList "}" { Function $2 $1 $4 
 FunctionArgs : FunctionArg { [ $1 ]  }
 			 | FunctionArg "," FunctionArgs { $1 : $3 }
 			 |	{ [] }
-FunctionArg : Type Ident { FunctionArg $1 $2 }
+FunctionArg : Type Ident { ($2, $1) }
 Stmt : StmtComp	{ $1 }
 	| StmtDecl { $1 }
 	| StmtAssig { $1 }
@@ -92,28 +92,28 @@ Type : "int" { TypeInt }
 
 Exp : ExpOr { $1 }
 ExpOr : ExpAnd { $1 }
-	| ExpOr "||" ExpAnd { ExpBin BinOr $1 $3 }
+	| ExpOr "||" ExpAnd { ExpBinaryOp BoolOr $1 $3 }
 ExpAnd : ExpCompe { $1 }
-	   | ExpAnd "&&" ExpCompe { ExpBin BinAnd $1 $3 }
+	   | ExpAnd "&&" ExpCompe { ExpBinaryOp BoolAnd $1 $3 }
 ExpCompe : ExpRel { $1 }
-		| ExpCompe "==" ExpRel { ExpCompe CompeEq $1 $3 }
-		| ExpCompe "!=" ExpRel { ExpCompe CompeNotEq $1 $3 }
+		| ExpCompe "==" ExpRel { ExpBinaryOp ComperEq $1 $3 }
+		| ExpCompe "!=" ExpRel { ExpBinaryOp ComperNotEq $1 $3 }
 ExpRel : ExpAddi { $1 }
-		| ExpRel "<" ExpAddi { ExpRel RelLe $1 $3 }
-		| ExpRel ">" ExpAddi { ExpRel RelGt $1 $3 }
-		| ExpRel "<=" ExpAddi { ExpRel RelLeEq $1 $3 }
-		| ExpRel ">=" ExpAddi { ExpRel RelGtEq $1 $3 }
+		| ExpRel "<" ExpAddi { ExpBinaryOp RelaLe $1 $3 }
+		| ExpRel ">" ExpAddi { ExpBinaryOp RelaGt $1 $3 }
+		| ExpRel "<=" ExpAddi { ExpBinaryOp RelaLeEq $1 $3 }
+		| ExpRel ">=" ExpAddi { ExpBinaryOp RelaGtEq $1 $3 }
 ExpAddi : ExpMulti { $1 }
-		| ExpAddi "+" ExpMulti { ExpAddi AddiPlus $1 $3 }
-		| ExpAddi "-" ExpMulti { ExpAddi AddiMinus $1 $3 }
+		| ExpAddi "+" ExpMulti { ExpBinaryOp AddiPlus $1 $3 }
+		| ExpAddi "-" ExpMulti { ExpBinaryOp AddiMinus $1 $3 }
 ExpMulti : ExpOneArg { $1 }
-		| ExpMulti "*" ExpOneArg { ExpMulti MultiMulti $1 $3 }
-		| ExpMulti "/" ExpOneArg { ExpMulti MultiDiv $1 $3 }
-		| ExpMulti "%" ExpOneArg { ExpMulti MultiMod $1 $3 }
+		| ExpMulti "*" ExpOneArg { ExpBinaryOp MultiMulti $1 $3 }
+		| ExpMulti "/" ExpOneArg { ExpBinaryOp MultiDiv $1 $3 }
+		| ExpMulti "%" ExpOneArg { ExpBinaryOp MultiMod $1 $3 }
 ExpOneArg : ExpPostfix { $1 }
-		| "!" ExpOneArg { ExpOneArg OneArgNot $2 }
-		| "+" ExpOneArg { ExpOneArg OneArgPlus $2 }
-		| "-" ExpOneArg { ExpOneArg OneArgMinus $2 }
+		| "!" ExpOneArg { ExpUnaryOp UnaryNot $2 }
+		| "+" ExpOneArg { ExpUnaryOp UnaryPlus $2 }
+		| "-" ExpOneArg { ExpUnaryOp UnaryMinus $2 }
 ExpPostfix : ExpSimp { $1 }
 		| ExpCallFunc { $1 }
 ExpCallFunc : Ident "(" ExpList ")" { ExpCallFunc $1 $3 }
@@ -146,9 +146,7 @@ data Type = TypeInt
 
 data Program = Program [Function]
 			deriving (Show, Eq)
-data Function = Function Ident Type [FunctionArg] [Stmt]
-			deriving (Show, Eq)
-data FunctionArg = FunctionArg Type Ident
+data Function = Function Ident Type [(Type, Type)] [Stmt]
 			deriving (Show, Eq)
 data Stmt = StmtList [Stmt]
 		 | StmtVarsDecl Type [Decl]
@@ -167,26 +165,19 @@ data Assig = AssigEq Ident Exp
 		  | AssigDec Ident
 			deriving (Show, Eq)
 
-data Bin = BinAnd | BinOr
-		deriving (Show, Eq)
-data Compe = CompeEq | CompeNotEq
-		deriving (Show, Eq)
-data Rel = RelLe | RelLeEq | RelGt | RelGtEq
-		deriving (Show, Eq)
-data Addi = AddiPlus | AddiMinus
-		deriving (Show, Eq)
-data Multi = MultiMulti | MultiDiv | MultiMod
-		deriving (Show, Eq)
-data OneArg = OneArgNot | OneArgPlus | OneArgMinus
-		deriving (Show, Eq)
+data BinaryOp = BoolAnd | BoolOr
+				| ComperEq | ComperNotEq
+				| RelaLe | RelaLeEq | RelaGt | RelaGtEq
+				| AddiPlus | AddiMinus
+				| MultiMulti | MultiDiv | MultiMod
+				deriving (Show, Eq)
+
+data UnaryOp = UnaryNot | UnaryPlus | UnaryMinus
+				deriving (Show, Eq)
 
 data Exp = ExpList [Exp]
-		| ExpBin Bin Exp Exp
-		| ExpCompe Comp Exp Exp
-		| ExpRel Rel Exp Exp
-		| ExpAddi Addi Exp Exp
-		| ExpMulti Multi Exp Exp
-		| ExpOneArg OneArg Exp
+		| ExpBinaryOp BinaryOp Exp Exp
+		| ExpUnaryOp UnaryOp Exp
 		| ExpCallFunc Ident [Exp]
 		| ExpVar Ident
 		| ExpExp Exp

@@ -1257,7 +1257,7 @@ happyReduce_8 = happySpecReduce_2  8 happyReduction_8
 happyReduction_8 (HappyTerminal (TIdent happy_var_2))
 	(HappyAbsSyn22  happy_var_1)
 	 =  HappyAbsSyn8
-		 (FunctionArg happy_var_1 happy_var_2
+		 ((happy_var_2, happy_var_1)
 	)
 happyReduction_8 _ _  = notHappyAtAll 
 
@@ -1530,7 +1530,7 @@ happyReduction_42 (HappyAbsSyn25  happy_var_3)
 	_
 	(HappyAbsSyn24  happy_var_1)
 	 =  HappyAbsSyn24
-		 (ExpBin BinOr happy_var_1 happy_var_3
+		 (ExpBinaryOp BoolOr happy_var_1 happy_var_3
 	)
 happyReduction_42 _ _ _  = notHappyAtAll 
 
@@ -1546,7 +1546,7 @@ happyReduction_44 (HappyAbsSyn26  happy_var_3)
 	_
 	(HappyAbsSyn25  happy_var_1)
 	 =  HappyAbsSyn25
-		 (ExpBin BinAnd happy_var_1 happy_var_3
+		 (ExpBinaryOp BoolAnd happy_var_1 happy_var_3
 	)
 happyReduction_44 _ _ _  = notHappyAtAll 
 
@@ -1562,7 +1562,7 @@ happyReduction_46 (HappyAbsSyn27  happy_var_3)
 	_
 	(HappyAbsSyn26  happy_var_1)
 	 =  HappyAbsSyn26
-		 (ExpCompe CompeEq happy_var_1 happy_var_3
+		 (ExpBinaryOp ComperEq happy_var_1 happy_var_3
 	)
 happyReduction_46 _ _ _  = notHappyAtAll 
 
@@ -1571,7 +1571,7 @@ happyReduction_47 (HappyAbsSyn27  happy_var_3)
 	_
 	(HappyAbsSyn26  happy_var_1)
 	 =  HappyAbsSyn26
-		 (ExpCompe CompeNotEq happy_var_1 happy_var_3
+		 (ExpBinaryOp ComperNotEq happy_var_1 happy_var_3
 	)
 happyReduction_47 _ _ _  = notHappyAtAll 
 
@@ -1587,7 +1587,7 @@ happyReduction_49 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpRel RelLe happy_var_1 happy_var_3
+		 (ExpBinaryOp RelaLe happy_var_1 happy_var_3
 	)
 happyReduction_49 _ _ _  = notHappyAtAll 
 
@@ -1596,7 +1596,7 @@ happyReduction_50 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpRel RelGt happy_var_1 happy_var_3
+		 (ExpBinaryOp RelaGt happy_var_1 happy_var_3
 	)
 happyReduction_50 _ _ _  = notHappyAtAll 
 
@@ -1605,7 +1605,7 @@ happyReduction_51 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpRel RelLeEq happy_var_1 happy_var_3
+		 (ExpBinaryOp RelaLeEq happy_var_1 happy_var_3
 	)
 happyReduction_51 _ _ _  = notHappyAtAll 
 
@@ -1614,7 +1614,7 @@ happyReduction_52 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpRel RelGtEq happy_var_1 happy_var_3
+		 (ExpBinaryOp RelaGtEq happy_var_1 happy_var_3
 	)
 happyReduction_52 _ _ _  = notHappyAtAll 
 
@@ -1630,7 +1630,7 @@ happyReduction_54 (HappyAbsSyn29  happy_var_3)
 	_
 	(HappyAbsSyn28  happy_var_1)
 	 =  HappyAbsSyn28
-		 (ExpAddi AddiPlus happy_var_1 happy_var_3
+		 (ExpBinaryOp AddiPlus happy_var_1 happy_var_3
 	)
 happyReduction_54 _ _ _  = notHappyAtAll 
 
@@ -1639,7 +1639,7 @@ happyReduction_55 (HappyAbsSyn29  happy_var_3)
 	_
 	(HappyAbsSyn28  happy_var_1)
 	 =  HappyAbsSyn28
-		 (ExpAddi AddiMinus happy_var_1 happy_var_3
+		 (ExpBinaryOp AddiMinus happy_var_1 happy_var_3
 	)
 happyReduction_55 _ _ _  = notHappyAtAll 
 
@@ -1655,7 +1655,7 @@ happyReduction_57 (HappyAbsSyn30  happy_var_3)
 	_
 	(HappyAbsSyn29  happy_var_1)
 	 =  HappyAbsSyn29
-		 (ExpMulti MultiMulti happy_var_1 happy_var_3
+		 (ExpBinaryOp MultiMulti happy_var_1 happy_var_3
 	)
 happyReduction_57 _ _ _  = notHappyAtAll 
 
@@ -1664,7 +1664,7 @@ happyReduction_58 (HappyAbsSyn30  happy_var_3)
 	_
 	(HappyAbsSyn29  happy_var_1)
 	 =  HappyAbsSyn29
-		 (ExpMulti MultiDiv happy_var_1 happy_var_3
+		 (ExpBinaryOp MultiDiv happy_var_1 happy_var_3
 	)
 happyReduction_58 _ _ _  = notHappyAtAll 
 
@@ -1673,7 +1673,7 @@ happyReduction_59 (HappyAbsSyn30  happy_var_3)
 	_
 	(HappyAbsSyn29  happy_var_1)
 	 =  HappyAbsSyn29
-		 (ExpMulti MultiMod happy_var_1 happy_var_3
+		 (ExpBinaryOp MultiMod happy_var_1 happy_var_3
 	)
 happyReduction_59 _ _ _  = notHappyAtAll 
 
@@ -1688,7 +1688,7 @@ happyReduce_61 = happySpecReduce_2  30 happyReduction_61
 happyReduction_61 (HappyAbsSyn30  happy_var_2)
 	_
 	 =  HappyAbsSyn30
-		 (ExpOneArg OneArgNot happy_var_2
+		 (ExpUnaryOp UnaryNot happy_var_2
 	)
 happyReduction_61 _ _  = notHappyAtAll 
 
@@ -1696,7 +1696,7 @@ happyReduce_62 = happySpecReduce_2  30 happyReduction_62
 happyReduction_62 (HappyAbsSyn30  happy_var_2)
 	_
 	 =  HappyAbsSyn30
-		 (ExpOneArg OneArgPlus happy_var_2
+		 (ExpUnaryOp UnaryPlus happy_var_2
 	)
 happyReduction_62 _ _  = notHappyAtAll 
 
@@ -1704,7 +1704,7 @@ happyReduce_63 = happySpecReduce_2  30 happyReduction_63
 happyReduction_63 (HappyAbsSyn30  happy_var_2)
 	_
 	 =  HappyAbsSyn30
-		 (ExpOneArg OneArgMinus happy_var_2
+		 (ExpUnaryOp UnaryMinus happy_var_2
 	)
 happyReduction_63 _ _  = notHappyAtAll 
 
@@ -1898,9 +1898,7 @@ data Type = TypeInt
 
 data Program = Program [Function]
 			deriving (Show, Eq)
-data Function = Function Ident Type [FunctionArg] [Stmt]
-			deriving (Show, Eq)
-data FunctionArg = FunctionArg Type Ident
+data Function = Function Ident Type [(Ident, Type)] [Stmt]
 			deriving (Show, Eq)
 data Stmt = StmtList [Stmt]
 		 | StmtVarsDecl Type [Decl]
@@ -1919,26 +1917,19 @@ data Assig = AssigEq Ident Exp
 		  | AssigDec Ident
 			deriving (Show, Eq)
 
-data Bin = BinAnd | BinOr
-		deriving (Show, Eq)
-data Compe = CompeEq | CompeNotEq
-		deriving (Show, Eq)
-data Rel = RelLe | RelLeEq | RelGt | RelGtEq
-		deriving (Show, Eq)
-data Addi = AddiPlus | AddiMinus
-		deriving (Show, Eq)
-data Multi = MultiMulti | MultiDiv | MultiMod
-		deriving (Show, Eq)
-data OneArg = OneArgNot | OneArgPlus | OneArgMinus
-		deriving (Show, Eq)
+data BinaryOp = BoolAnd | BoolOr
+				| ComperEq | ComperNotEq
+				| RelaLe | RelaLeEq | RelaGt | RelaGtEq
+				| AddiPlus | AddiMinus
+				| MultiMulti | MultiDiv | MultiMod
+				deriving (Show, Eq)
+
+data UnaryOp = UnaryNot | UnaryPlus | UnaryMinus
+				deriving (Show, Eq)
 
 data Exp = ExpList [Exp]
-		| ExpBin Bin Exp Exp
-		| ExpCompe Compe Exp Exp
-		| ExpRel Rel Exp Exp
-		| ExpAddi Addi Exp Exp
-		| ExpMulti Multi Exp Exp
-		| ExpOneArg OneArg Exp
+		| ExpBinaryOp BinaryOp Exp Exp
+		| ExpUnaryOp UnaryOp Exp
 		| ExpCallFunc Ident [Exp]
 		| ExpVar Ident
 		| ExpExp Exp
