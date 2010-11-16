@@ -10,12 +10,14 @@ $graphic = $printable # $white
 
 @int = $digit+
 @double = $digit+ \. $digit+
-@string = \" $graphic? [$graphic \\\"]* \"
+@string = \" (\\.|[^\"])* \"
 @ident = $alpha [$alpha $digit \_]*
 
 tokens :-
 	$white+	;
 	"#".*	;
+	"//".*	;
+	"/*".*	;
 	"int"	{ \s -> TInt }
 	"double"	{ \s -> TDouble }
 	"boolean"	{ \s -> TBoolean }
@@ -38,6 +40,7 @@ tokens :-
 	"||"	{ \s -> TOr }
 	"&&"	{ \s -> TAnd }
 	"=="	{ \s -> TEqualsSign }
+	"!="	{ \s -> TNotEqualsSign }
 	"<"	{ \s -> TLessSign }
 	">"	{ \s -> TGreaterSign }
 	"<="	{ \s -> TLeOrEqSign }
@@ -53,12 +56,6 @@ tokens :-
 	"while"	{ \s -> TWhile }
 	"for"	{ \s -> TFor }
 	"return"	{ \s -> TReturn }
-	"printInt"	{ \s -> TPredefFunPrintInt }
-	"printDouble"	{ \s -> TPredefFunPrintDouble }
-	"printString"	{ \s -> TPredefFunPrintString }
-	"error"	{ \s -> TPredefFunError }
-	"readInt"	{ \s -> TPredefFunReadInt }
-	"readDouble"	{ \s -> TPredefFunReadDouble }
 	@ident { \s -> TIdent s }
 
 {
@@ -102,12 +99,6 @@ data Token = TInt
 			| TWhile
 			| TFor
 			| TReturn
-			| TPredefFunPrintInt
-			| TPredefFunPrintDouble
-			| TPredefFunPrintString
-			| TPredefFunError
-			| TPredefFunReadInt
-			| TPredefFunReadDouble
 			deriving (Eq, Show)
 
 }

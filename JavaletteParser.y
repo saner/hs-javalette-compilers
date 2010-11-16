@@ -12,10 +12,9 @@ import JavaletteLexer
 	"int"	{ TInt }
 	"double"	{ TDouble }
 	"boolean"	{ TBoolean }
-	"String"	{ TString }
 	"void"	{ TVoid }
-	"false"	{ TFalseLiteral }
-	"true"	{ TTrueLiteral }
+	FalseLiteral { TFalseLiteral }
+	TrueLiteral	{ TTrueLiteral }
 	IntLiteral { TIntLiteral $$ }
 	DoubleLiteral { TDoubleLiteral $$ }
 	StringLiteral { TStringLiteral $$ }
@@ -47,19 +46,13 @@ import JavaletteLexer
 	"while"	{ TWhile }
 	"for"	{ TFor }
 	"return"	{ TReturn }
-	"printInt"	{ TPredefFunPrintInt }
-	"printDouble"	{ TPredefFunPrintDouble }
-	"printString"	{ TPredefFunPrintString }
-	"error"	{ TPredefFunError }
-	"readInt"	{ TPredefFunReadInt }
-	"readDouble"	{ TPredefFunReadDouble }
 	Ident { TIdent $$ }
 %%
 
 Program : FunctionList { Program $1 }
 FunctionList : Function FunctionList { $1 : $2 }
 			 |	{ [] } 
-Function : Type Ident "(" FunctionArgs ")" StmtComp { Function $2 $1 $4 $6 }
+Function : Type Ident "(" FunctionArgs ")" "{" StmtList "}" { Function $2 $1 $4 $7 }
 FunctionArgs : FunctionArg { [ $1 ]  }
 			 | FunctionArg "," FunctionArgs { $1 : $3 }
 			 |	{ [] }
@@ -78,8 +71,8 @@ StmtList : Stmt StmtList { $1 : $2 }
 StmtDecl : Type DeclList ";" { StmtVarsDecl $1 $2 }
 DeclList : Decl { [ $1 ] }
 		 | Decl "," DeclList { $1 : $3 }
-Decl : Ident { Decl $1 ExpEmpty  }
-	 | Ident "=" Exp { Decl $1 $3 }
+Decl : Ident { Decl $1 Nothing }
+	 | Ident "=" Exp { Decl $1 (Just $3) }
 StmtAssig : Assig ";" { StmtAssig $1 }
 Assig : Ident "=" Exp { AssigEq $1 $3 }
 	  | Ident "++" { AssigInc $1 }
@@ -88,8 +81,8 @@ StmtIf : "if" "(" Exp ")" Stmt { StmtIf $3 $5 StmtEmpty }
 	   | "if" "(" Exp ")" Stmt "else" Stmt { StmtIf $3 $5 $7 }
 StmtWhile : "while" "(" Exp ")" Stmt { StmtWhile $3 $5 }
 StmtFor : "for" "(" Assig ";" Exp ";" Assig ")" Stmt { StmtFor $3 $5 $7 $9 }
-StmtReturn : "return" ";" { StmtReturn ExpEmpty }
-		| "return" Exp ";" { StmtReturn $2 }
+StmtReturn : "return" ";" { StmtReturn Nothing }
+		| "return" Exp ";" { StmtReturn (Just $2) }
 StmtExp : Exp ";" { StmtExp $1 }
 
 Type : "int" { TypeInt }
@@ -100,11 +93,11 @@ Type : "int" { TypeInt }
 Exp : ExpOr { $1 }
 ExpOr : ExpAnd { $1 }
 	| ExpOr "||" ExpAnd { ExpBin BinOr $1 $3 }
-ExpAnd : ExpComp { $1 }
-	   | ExpAnd "&&" ExpComp { ExpBin BinAnd $1 $3 }
-ExpComp : ExpRel { $1 }
-		| ExpComp "==" ExpRel { ExpComp CompEq $1 $3 }
-		| ExpComp "!=" ExpRel { ExpComp CompNotEq $1 $3 }
+ExpAnd : ExpCompe { $1 }
+	   | ExpAnd "&&" ExpCompe { ExpBin BinAnd $1 $3 }
+ExpCompe : ExpRel { $1 }
+		| ExpCompe "==" ExpRel { ExpCompe CompeEq $1 $3 }
+		| ExpCompe "!=" ExpRel { ExpCompe CompeNotEq $1 $3 }
 ExpRel : ExpAddi { $1 }
 		| ExpRel "<" ExpAddi { ExpRel RelLe $1 $3 }
 		| ExpRel ">" ExpAddi { ExpRel RelGt $1 $3 }
@@ -123,9 +116,9 @@ ExpOneArg : ExpPostfix { $1 }
 		| "-" ExpOneArg { ExpOneArg OneArgMinus $2 }
 ExpPostfix : ExpSimp { $1 }
 		| ExpCallFunc { $1 }
-ExpCallFunc : Ident "(" ")" { ExpCallFunc $1 [] } 
-		   | Ident "(" ExpList ")" { ExpCallFunc $1 $3 }
-ExpList : Exp "," ExpList { $1 : $3 }
+ExpCallFunc : Ident "(" ExpList ")" { ExpCallFunc $1 $3 }
+ExpList : Exp { [ $1 ] }
+		| Exp "," ExpList { $1 : $3 } 
 		|  { [] }
 ExpSimp : Ident { ExpVar $1 }
 		| Literal { $1 }
@@ -133,6 +126,8 @@ ExpSimp : Ident { ExpVar $1 }
 Literal : IntLiteral { ExpInt $1 }
 		| DoubleLiteral { ExpDouble $1 }
 		| StringLiteral { ExpString $1 }
+		| FalseLiteral { ExpFalse }
+		| TrueLiteral { ExpTrue }
 
 {
 type Ident = String
@@ -151,7 +146,7 @@ data Type = TypeInt
 
 data Program = Program [Function]
 			deriving (Show, Eq)
-data Function = Function Ident Type [FunctionArg] Stmt
+data Function = Function Ident Type [FunctionArg] [Stmt]
 			deriving (Show, Eq)
 data FunctionArg = FunctionArg Type Ident
 			deriving (Show, Eq)
@@ -161,11 +156,11 @@ data Stmt = StmtList [Stmt]
 		 | StmtIf Exp Stmt Stmt
 		 | StmtWhile Exp Stmt
 		 | StmtFor Assig Exp Assig Stmt
-		 | StmtReturn Exp
+		 | StmtReturn (Maybe Exp)
 		 | StmtExp Exp
 		 | StmtEmpty
 			deriving (Show, Eq)
-data Decl = Decl Ident Exp
+data Decl = Decl Ident (Maybe Exp)
 			deriving (Show, Eq)
 data Assig = AssigEq Ident Exp
 		  | AssigInc Ident
@@ -174,7 +169,7 @@ data Assig = AssigEq Ident Exp
 
 data Bin = BinAnd | BinOr
 		deriving (Show, Eq)
-data Comp = CompEq | CompNotEq
+data Compe = CompeEq | CompeNotEq
 		deriving (Show, Eq)
 data Rel = RelLe | RelLeEq | RelGt | RelGtEq
 		deriving (Show, Eq)
@@ -185,10 +180,9 @@ data Multi = MultiMulti | MultiDiv | MultiMod
 data OneArg = OneArgNot | OneArgPlus | OneArgMinus
 		deriving (Show, Eq)
 
-data Exp = ExpEmpty
-		| ExpList [Exp]
+data Exp = ExpList [Exp]
 		| ExpBin Bin Exp Exp
-		| ExpComp Comp Exp Exp
+		| ExpCompe Compe Exp Exp
 		| ExpRel Rel Exp Exp
 		| ExpAddi Addi Exp Exp
 		| ExpMulti Multi Exp Exp
@@ -199,6 +193,8 @@ data Exp = ExpEmpty
 		| ExpInt Int
 		| ExpDouble Double
 		| ExpString String
+		| ExpTrue
+		| ExpFalse
 		deriving (Show, Eq)
 
 }   
