@@ -4,4 +4,4 @@ import JavaletteLexer
 
 main = do
 	s <- getContents
-	print $ alexScanTokens s
+	print $ javaletteLex s

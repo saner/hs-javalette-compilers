@@ -3,5 +3,5 @@ module Main where
 import JavaletteLexer
 
 main = do
-	s <- readLines
+	s <- getContents
 	print $ alexScanTokens s

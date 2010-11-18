@@ -5,8 +5,10 @@ import JavaletteParser
 
 
 main = do 
-	inStr <- getContents 
-	let parseTree = javaletteParse (alexScanTokens inStr) 
-	putStrLn ("parseTree:" ++ show(parseTree)) 
-	print "done" 
-
+	str <- getContents 
+	case (javaletteLex str) of
+		Left l -> putStrLn $ "wystapil blad: " ++ l
+		Right r ->  do
+			let parseTree = javaletteParse r
+			putStrLn ("parseTree:" ++ show(parseTree)) 
+			print "done" 
