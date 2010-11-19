@@ -56,6 +56,7 @@ Function : Type Ident "(" FunctionArgs ")" "{" StmtList "}" { Function (unIdent 
 FunctionArgs : FunctionArg { [ $1 ]  }
 			 | FunctionArg "," FunctionArgs { $1 : $3 }
 			 |	{ [] }
+			 | error { error "exp blad" }
 FunctionArg : Type Ident { ((unIdent $2), $1) }
 Stmt : StmtComp	{ $1 }
 	| StmtDecl { $1 }
@@ -120,6 +121,7 @@ ExpCallFunc : Ident "(" ExpList ")" { ExpCallFunc (unIdent $1) $3 }
 ExpList : Exp { [ $1 ] }
 		| Exp "," ExpList { $1 : $3 } 
 		|  { [] }
+		| error { error "exp blad" }
 ExpSimp : Ident { ExpVar (unIdent $1) }
 		| Literal { $1 }
 		| "(" Exp ")" { ExpExp $2 }
@@ -135,7 +137,7 @@ unWrap :: PosToken -> Token
 unWrap (Pos pos token) = token
 
 unIdent :: PosToken -> String
-unIdent (Pos p (TStringLiteral str)) = str
+unIdent (Pos p (TIdent str)) = str
 
 unInt :: PosToken -> Int
 unInt (Pos p (TIntLiteral i)) = i
