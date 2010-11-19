@@ -4,59 +4,59 @@ import JavaletteLexer
 }
 
 %name javaletteParse
-%tokentype { Token }
+%tokentype { PosToken }
 %error { parseError }
 
 
 %token
-	"int"	{ TInt }
-	"double"	{ TDouble }
-	"boolean"	{ TBoolean }
-	"void"	{ TVoid }
-	FalseLiteral { TFalseLiteral }
-	TrueLiteral	{ TTrueLiteral }
-	IntLiteral { TIntLiteral $$ }
-	DoubleLiteral { TDoubleLiteral $$ }
-	StringLiteral { TStringLiteral $$ }
-	"("	{ TLeftParen }
-	")"	{ TRightParen }
-	"{"	{ TLeftBrace }
-	"}"	{ TRightBrace }
-	","	{ TComma }
-	";"	{ TSemicolon }
-	"="	{ TAssignSign }
-	"++"	{ TIncrement }
-	"--"	{ TDecrement }
-	"||"	{ TOr }
-	"&&"	{ TAnd }
-	"=="	{ TEqualsSign }
-	"!="	{ TNotEqualsSign }
-	"<"	{ TLessSign }
-	">"	{ TGreaterSign }
-	"<="	{ TLeOrEqSign }
-	">="	{ TGrOrEqSign }
-	"+"	{ TPlusSign }
-	"-"	{ TMinusSign }
-	"/"	{ TDivSign }
-	"%"	{ TModSign }
-	"*"	{ TMultiSign }
-	"!"	{ TNot }
-	"if"	{ TIf }
-	"else"	{ TElse }
-	"while"	{ TWhile }
-	"for"	{ TFor }
-	"return"	{ TReturn }
-	Ident { TIdent $$ }
+	"int"	{ Pos _ TInt }
+	"double"	{ Pos _ TDouble }
+	"boolean"	{ Pos _ TBoolean }
+	"void"	{ Pos _ TVoid }
+	FalseLiteral { Pos _ TFalseLiteral }
+	TrueLiteral	{ Pos _ TTrueLiteral }
+	IntLiteral { Pos _ (TIntLiteral _) }
+	DoubleLiteral { Pos _ (TDoubleLiteral _) }
+	StringLiteral { Pos _ (TStringLiteral _) }
+	"("	{ Pos _ TLeftParen }
+	")"	{ Pos _ TRightParen }
+	"{"	{ Pos _ TLeftBrace }
+	"}"	{ Pos _ TRightBrace }
+	","	{ Pos _ TComma }
+	";"	{ Pos _ TSemicolon }
+	"="	{ Pos _ TAssignSign }
+	"++"	{ Pos _ TIncrement }
+	"--"	{ Pos _ TDecrement }
+	"||"	{ Pos _ TOr }
+	"&&"	{ Pos _ TAnd }
+	"=="	{ Pos _ TEqualsSign }
+	"!="	{ Pos _ TNotEqualsSign }
+	"<"	{ Pos _ TLessSign }
+	">"	{ Pos _ TGreaterSign }
+	"<="	{ Pos _ TLeOrEqSign }
+	">="	{ Pos _ TGrOrEqSign }
+	"+"	{ Pos _ TPlusSign }
+	"-"	{ Pos _ TMinusSign }
+	"/"	{ Pos _ TDivSign }
+	"%"	{ Pos _ TModSign }
+	"*"	{ Pos _ TMultiSign }
+	"!"	{ Pos _ TNot }
+	"if"	{ Pos _ TIf }
+	"else"	{ Pos _ TElse }
+	"while"	{ Pos _ TWhile }
+	"for"	{ Pos _ TFor }
+	"return"	{ Pos _ TReturn }
+	Ident { Pos _ (TIdent _) }
 %%
 
 Program : FunctionList { Program $1 }
 FunctionList : Function FunctionList { $1 : $2 }
 			 |	{ [] } 
-Function : Type Ident "(" FunctionArgs ")" "{" StmtList "}" { Function $2 $1 $4 $7 }
+Function : Type Ident "(" FunctionArgs ")" "{" StmtList "}" { Function (unIdent $2) $1 $4 $7 }
 FunctionArgs : FunctionArg { [ $1 ]  }
 			 | FunctionArg "," FunctionArgs { $1 : $3 }
 			 |	{ [] }
-FunctionArg : Type Ident { ($2, $1) }
+FunctionArg : Type Ident { ((unIdent $2), $1) }
 Stmt : StmtComp	{ $1 }
 	| StmtDecl { $1 }
 	| StmtAssig { $1 }
@@ -71,12 +71,12 @@ StmtList : Stmt StmtList { $1 : $2 }
 StmtDecl : Type DeclList ";" { StmtVarsDecl $1 $2 }
 DeclList : Decl { [ $1 ] }
 		 | Decl "," DeclList { $1 : $3 }
-Decl : Ident { Decl $1 Nothing }
-	 | Ident "=" Exp { Decl $1 (Just $3) }
+Decl : Ident { Decl (unIdent $1) Nothing }
+	 | Ident "=" Exp { Decl (unIdent $1) (Just $3) }
 StmtAssig : Assig ";" { StmtAssig $1 }
-Assig : Ident "=" Exp { AssigEq $1 $3 }
-	  | Ident "++" { AssigInc $1 }
-	  | Ident "--" { AssigDec $1 }
+Assig : Ident "=" Exp { AssigEq (unIdent $1) $3 }
+	  | Ident "++" { AssigInc (unIdent $1) }
+	  | Ident "--" { AssigDec (unIdent $1) }
 StmtIf : "if" "(" Exp ")" Stmt { StmtIf $3 $5 StmtEmpty }
 	   | "if" "(" Exp ")" Stmt "else" Stmt { StmtIf $3 $5 $7 }
 StmtWhile : "while" "(" Exp ")" Stmt { StmtWhile $3 $5 }
@@ -116,27 +116,44 @@ ExpOneArg : ExpPostfix { $1 }
 		| "-" ExpOneArg { ExpUnaryOp UnaryMinus $2 }
 ExpPostfix : ExpSimp { $1 }
 		| ExpCallFunc { $1 }
-ExpCallFunc : Ident "(" ExpList ")" { ExpCallFunc $1 $3 }
+ExpCallFunc : Ident "(" ExpList ")" { ExpCallFunc (unIdent $1) $3 }
 ExpList : Exp { [ $1 ] }
 		| Exp "," ExpList { $1 : $3 } 
 		|  { [] }
-ExpSimp : Ident { ExpVar $1 }
+ExpSimp : Ident { ExpVar (unIdent $1) }
 		| Literal { $1 }
 		| "(" Exp ")" { ExpExp $2 }
-Literal : IntLiteral { ExpInt $1 }
-		| DoubleLiteral { ExpDouble $1 }
-		| StringLiteral { ExpString $1 }
+Literal : IntLiteral { ExpInt (unInt $1) }
+		| DoubleLiteral { ExpDouble (unDouble $1) }
+		| StringLiteral { ExpString (unString $1) }
 		| FalseLiteral { ExpFalse }
 		| TrueLiteral { ExpTrue }
 
+
 {
+unWrap :: PosToken -> Token
+unWrap (Pos pos token) = token
+
+unIdent :: PosToken -> String
+unIdent (Pos p (TStringLiteral str)) = str
+
+unInt :: PosToken -> Int
+unInt (Pos p (TIntLiteral i)) = i
+
+unDouble :: PosToken -> Double
+unDouble (Pos p (TDoubleLiteral d)) = d
+
+unString :: PosToken -> String
+unString (Pos p (TStringLiteral s)) = s
+
+
 type Ident = String
 type IntLiteral = Int
 type DoubleLiteral = Double
 type StringLiteral = String
 
-parseError :: [Token] -> a
-parseError _ = error "Parse error"
+parseError :: [PosToken] -> a
+parseError token = error $ "Parse error" ++ (show token)
 
 data Type = TypeInt
 			| TypeDouble

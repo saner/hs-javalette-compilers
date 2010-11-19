@@ -83,7 +83,7 @@ data AlexState = AlexState {
         alex_chr :: !Char,      -- the character before the input
         alex_scd :: !Int        -- the current startcode
 
-
+      , alex_ust :: AlexUserState -- AlexUserState will be defined in the user program
 
     }
 
@@ -95,7 +95,7 @@ runAlex input (Alex f)
                         alex_inp = input,       
                         alex_chr = '\n',
 
-
+                        alex_ust = alexInitUserState,
 
                         alex_scd = 0}) of Left msg -> Left msg
                                           Right ( _, a ) -> Right a
@@ -217,78 +217,103 @@ alex_accept = listArray (0::Int,99) [[],[],[(AlexAccSkip)],[(AlexAccSkip)],[(Ale
 {-# LINE 66 ".\JavaletteLexer.x" #-}
 
 data Token = TInt
-			| TDouble
-			| TBoolean
-			| TString
-			| TVoid
-			| TFalseLiteral
-			| TTrueLiteral
-			| TIntLiteral Int
-			| TDoubleLiteral Double
-			| TBooleanLiteral Bool
-			| TStringLiteral String
-			| TIdent String
-			| TLeftParen
-			| TRightParen
-			| TLeftBrace
-			| TRightBrace
-			| TComma
-			| TSemicolon
-			| TAssignSign
-			| TIncrement
-			| TDecrement
-			| TOr
-			| TAnd
-			| TEqualsSign
-			| TNotEqualsSign
-			| TLessSign
-			| TGreaterSign
-			| TLeOrEqSign
-			| TGrOrEqSign
-			| TPlusSign
-			| TMinusSign
-			| TDivSign
-			| TModSign
-			| TMultiSign
-			| TNot
-			| TIf
-			| TElse
-			| TWhile
-			| TFor
-			| TReturn
-			| TError
-			| TEOF
-			deriving (Eq, Show)
+            | TDouble
+            | TBoolean
+            | TString
+            | TVoid
+            | TFalseLiteral
+            | TTrueLiteral
+            | TIntLiteral Int
+            | TDoubleLiteral Double
+            | TBooleanLiteral Bool
+            | TStringLiteral String
+            | TIdent String
+            | TLeftParen
+            | TRightParen
+            | TLeftBrace
+            | TRightBrace
+            | TComma
+            | TSemicolon
+            | TAssignSign
+            | TIncrement
+            | TDecrement
+            | TOr
+            | TAnd
+            | TEqualsSign
+            | TNotEqualsSign
+            | TLessSign
+            | TGreaterSign
+            | TLeOrEqSign
+            | TGrOrEqSign
+            | TPlusSign
+            | TMinusSign
+            | TDivSign
+            | TModSign
+            | TMultiSign
+            | TNot
+            | TIf
+            | TElse
+            | TWhile
+            | TFor
+            | TReturn
+            | TError String
+            | TEOF
+            deriving (Eq, Show)
 
-alexEOF :: Alex Token
-alexEOF = return TEOF
+data Pos a = Pos (Int, Int) a
+                deriving (Eq, Show)
+type PosToken = Pos Token
 
-{- dziala
-javaletteLex :: String -> Either String [Token]
+mkToken :: Token -> AlexInput -> Int -> Alex PosToken
+mkToken token (AlexPn _ line col, _, str) len = 
+    return $ Pos (line, col) $ token
+
+mkTokenArg :: (String -> Token) -> AlexInput -> Int -> Alex PosToken
+mkTokenArg token (AlexPn _ line col, _, str) len = 
+    return $ Pos (line, col) $ token (take len str)
+
+alexEOF = do
+        (AlexPn _ line col, _, _) <- alexGetInput
+        return $ Pos (line,col) TEOF
+
+type LexerError = Pos String
+data AlexUserState = AlexUserState { errors :: [LexerError] }
+
+alexInitUserState :: AlexUserState
+alexInitUserState = AlexUserState { errors = [] }
+
+lexError :: AlexInput -> Int -> Alex PosToken
+lexError input len =
+             do let error = Pos (line, col) $ "Blad znak: " ++ (take len str)
+                    (AlexPn _ line col, _, str) = input
+                addError error
+                skip input len
+
+addError :: LexerError -> Alex ()
+addError err = Alex $ \alx ->
+            let usr_st = alex_ust alx
+                errs = errors usr_st
+                alx' = alx { alex_ust = usr_st { errors = (err:errs) } }
+            in Right (alx', ())
+
+getErrors :: Alex [LexerError]
+getErrors = Alex $ \alx -> Right(alx, errors $ alex_ust alx)
+
+javaletteLex :: String -> Either String ([PosToken], [LexerError])
 javaletteLex str = runAlex str $ do
-	let loop = do
-			tok <- alexMonadScan
-			case tok of
-				TEOF -> return []
-				_ -> return []
--}
-javaletteLex :: String -> Either String [Token]
-javaletteLex str = runAlex str $ do
-	let loop = do
-			tok <- alexMonadScan
-			case tok of
-				TEOF -> do 
-						   sc <- alexGetStartCode
-						   if (sc == mlcomment) 
-								then return $ [TFalseLiteral]
-								else return $ [TTrueLiteral]
-				TError -> do 
-						   sc <- alexGetStartCode
-						   if (sc == mlcomment) 
-								then return $ [TFalseLiteral]
-								else return $ [TTrueLiteral]
-				_ -> liftM (tok:) loop
-	loop
+                    tokens <- getTokens
+                    errs <- getErrors
+                    --return [Pos (0,0) TInt]
+                    return (tokens, errs)
+    where getTokens = do
+            scan@(Pos pos token) <- alexMonadScan
+            case token of
+                TEOF -> do sc <- alexGetStartCode
+                           if sc == mlcomment 
+                                then do addError $ Pos pos "niezamkniety komentarz"
+                                        return []
+                                else return []
+                _ -> liftM (scan:) getTokens
 
 
 mlcomment :: Int
@@ -296,45 +321,45 @@ mlcomment = 1
 alex_action_3 =  begin mlcomment 
 alex_action_4 =  begin 0 
 alex_action_6 =  skip 
-alex_action_7 =  \ai l -> return TInt 
-alex_action_8 =  \ai l -> return TDouble 
-alex_action_9 =  \ai l -> return TBoolean 
-alex_action_10 =  \ai l -> return TString 
-alex_action_11 =  \ai l -> return TVoid 
-alex_action_12 =  \ai l -> return TFalseLiteral 
-alex_action_13 =  \ai l -> return TTrueLiteral 
-alex_action_14 =  \(_,_,s) l -> return $ TIntLiteral (read (take l s)) 
-alex_action_15 =  \(_,_,s) l -> return $ TDoubleLiteral (read (take l s)) 
-alex_action_16 =  \(_,_,s) l -> return $ TStringLiteral (init (tail (take l s))) 
-alex_action_17 =  \ai l -> return TLeftParen 
-alex_action_18 =  \ai l -> return TRightParen 
-alex_action_19 =  \ai l -> return TLeftBrace 
-alex_action_20 =  \ai l -> return TRightBrace 
-alex_action_21 =  \ai l -> return TComma 
-alex_action_22 =  \ai l -> return TSemicolon 
-alex_action_23 =  \ai l -> return TAssignSign 
-alex_action_24 =  \ai l -> return TIncrement 
-alex_action_25 =  \ai l -> return TDecrement 
-alex_action_26 =  \ai l -> return TOr 
-alex_action_27 =  \ai l -> return TAnd 
-alex_action_28 =  \ai l -> return TEqualsSign 
-alex_action_29 =  \ai l -> return TNotEqualsSign 
-alex_action_30 =  \ai l -> return TLessSign 
-alex_action_31 =  \ai l -> return TGreaterSign 
-alex_action_32 =  \ai l -> return TLeOrEqSign 
-alex_action_33 =  \ai l -> return TGrOrEqSign 
-alex_action_34 =  \ai l -> return TPlusSign 
-alex_action_35 =  \ai l -> return TMinusSign 
-alex_action_36 =  \ai l -> return TDivSign 
-alex_action_37 =  \ai l -> return TModSign 
-alex_action_38 =  \ai l -> return TMultiSign 
-alex_action_39 =  \ai l -> return TNot 
-alex_action_40 =  \ai l -> return TIf 
-alex_action_41 =  \ai l -> return TElse 
-alex_action_42 =  \ai l -> return TWhile 
-alex_action_43 =  \ai l -> return TFor 
-alex_action_44 =  \ai l -> return TReturn 
-alex_action_45 =  \(_,_,s) l -> return $ TIdent (take l s) 
+alex_action_7 =  mkToken TInt 
+alex_action_8 =  mkToken TDouble 
+alex_action_9 =  mkToken TBoolean 
+alex_action_10 =  mkToken TString 
+alex_action_11 =  mkToken TVoid 
+alex_action_12 =  mkToken TFalseLiteral 
+alex_action_13 =  mkToken TTrueLiteral 
+alex_action_14 =  mkTokenArg (TIntLiteral . read) 
+alex_action_15 =  mkTokenArg (TDoubleLiteral . read) 
+alex_action_16 =  mkTokenArg (TStringLiteral . init . tail) 
+alex_action_17 =  mkToken TLeftParen 
+alex_action_18 =  mkToken TRightParen 
+alex_action_19 =  mkToken TLeftBrace 
+alex_action_20 =  mkToken TRightBrace 
+alex_action_21 =  mkToken TComma 
+alex_action_22 =  mkToken TSemicolon 
+alex_action_23 =  mkToken TAssignSign 
+alex_action_24 =  mkToken TIncrement 
+alex_action_25 =  mkToken TDecrement 
+alex_action_26 =  mkToken TOr 
+alex_action_27 =  mkToken TAnd 
+alex_action_28 =  mkToken TEqualsSign 
+alex_action_29 =  mkToken TNotEqualsSign 
+alex_action_30 =  mkToken TLessSign 
+alex_action_31 =  mkToken TGreaterSign 
+alex_action_32 =  mkToken TLeOrEqSign 
+alex_action_33 =  mkToken TGrOrEqSign 
+alex_action_34 =  mkToken TPlusSign 
+alex_action_35 =  mkToken TMinusSign 
+alex_action_36 =  mkToken TDivSign 
+alex_action_37 =  mkToken TModSign 
+alex_action_38 =  mkToken TMultiSign 
+alex_action_39 =  mkToken TNot 
+alex_action_40 =  mkToken TIf 
+alex_action_41 =  mkToken TElse 
+alex_action_42 =  mkToken TWhile 
+alex_action_43 =  mkToken TFor 
+alex_action_44 =  mkToken TReturn 
+alex_action_45 =  mkTokenArg TIdent 
 {-# LINE 1 "templates\GenericTemplate.hs" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}

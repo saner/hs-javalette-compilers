@@ -5,7 +5,7 @@ import JavaletteLexer
 -- parser produced by Happy Version 1.18.5
 
 data HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 t27 t28 t29 t30 t31 t32 t33 t34 t35
-	= HappyTerminal (Token)
+	= HappyTerminal (PosToken)
 	| HappyErrorToken Int
 	| HappyAbsSyn4 t4
 	| HappyAbsSyn5 t5
@@ -1225,11 +1225,11 @@ happyReduction_4 (_ `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn7  happy_var_4) `HappyStk`
 	_ `HappyStk`
-	(HappyTerminal (TIdent happy_var_2)) `HappyStk`
+	(HappyTerminal happy_var_2) `HappyStk`
 	(HappyAbsSyn22  happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn6
-		 (Function happy_var_2 happy_var_1 happy_var_4 happy_var_7
+		 (Function (unIdent happy_var_2) happy_var_1 happy_var_4 happy_var_7
 	) `HappyStk` happyRest
 
 happyReduce_5 = happySpecReduce_1  7 happyReduction_5
@@ -1254,10 +1254,10 @@ happyReduction_7  =  HappyAbsSyn7
 	)
 
 happyReduce_8 = happySpecReduce_2  8 happyReduction_8
-happyReduction_8 (HappyTerminal (TIdent happy_var_2))
+happyReduction_8 (HappyTerminal happy_var_2)
 	(HappyAbsSyn22  happy_var_1)
 	 =  HappyAbsSyn8
-		 ((happy_var_2, happy_var_1)
+		 (((unIdent happy_var_2), happy_var_1)
 	)
 happyReduction_8 _ _  = notHappyAtAll 
 
@@ -1365,18 +1365,18 @@ happyReduction_22 (HappyAbsSyn13  happy_var_3)
 happyReduction_22 _ _ _  = notHappyAtAll 
 
 happyReduce_23 = happySpecReduce_1  14 happyReduction_23
-happyReduction_23 (HappyTerminal (TIdent happy_var_1))
+happyReduction_23 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn14
-		 (Decl happy_var_1 Nothing
+		 (Decl (unIdent happy_var_1) Nothing
 	)
 happyReduction_23 _  = notHappyAtAll 
 
 happyReduce_24 = happySpecReduce_3  14 happyReduction_24
 happyReduction_24 (HappyAbsSyn23  happy_var_3)
 	_
-	(HappyTerminal (TIdent happy_var_1))
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn14
-		 (Decl happy_var_1 (Just happy_var_3)
+		 (Decl (unIdent happy_var_1) (Just happy_var_3)
 	)
 happyReduction_24 _ _ _  = notHappyAtAll 
 
@@ -1391,25 +1391,25 @@ happyReduction_25 _ _  = notHappyAtAll
 happyReduce_26 = happySpecReduce_3  16 happyReduction_26
 happyReduction_26 (HappyAbsSyn23  happy_var_3)
 	_
-	(HappyTerminal (TIdent happy_var_1))
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn16
-		 (AssigEq happy_var_1 happy_var_3
+		 (AssigEq (unIdent happy_var_1) happy_var_3
 	)
 happyReduction_26 _ _ _  = notHappyAtAll 
 
 happyReduce_27 = happySpecReduce_2  16 happyReduction_27
 happyReduction_27 _
-	(HappyTerminal (TIdent happy_var_1))
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn16
-		 (AssigInc happy_var_1
+		 (AssigInc (unIdent happy_var_1)
 	)
 happyReduction_27 _ _  = notHappyAtAll 
 
 happyReduce_28 = happySpecReduce_2  16 happyReduction_28
 happyReduction_28 _
-	(HappyTerminal (TIdent happy_var_1))
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn16
-		 (AssigDec happy_var_1
+		 (AssigDec (unIdent happy_var_1)
 	)
 happyReduction_28 _ _  = notHappyAtAll 
 
@@ -1726,10 +1726,10 @@ happyReduce_66 = happyReduce 4 32 happyReduction_66
 happyReduction_66 (_ `HappyStk`
 	(HappyAbsSyn33  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	(HappyTerminal (TIdent happy_var_1)) `HappyStk`
+	(HappyTerminal happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn32
-		 (ExpCallFunc happy_var_1 happy_var_3
+		 (ExpCallFunc (unIdent happy_var_1) happy_var_3
 	) `HappyStk` happyRest
 
 happyReduce_67 = happySpecReduce_1  33 happyReduction_67
@@ -1754,9 +1754,9 @@ happyReduction_69  =  HappyAbsSyn33
 	)
 
 happyReduce_70 = happySpecReduce_1  34 happyReduction_70
-happyReduction_70 (HappyTerminal (TIdent happy_var_1))
+happyReduction_70 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn34
-		 (ExpVar happy_var_1
+		 (ExpVar (unIdent happy_var_1)
 	)
 happyReduction_70 _  = notHappyAtAll 
 
@@ -1777,23 +1777,23 @@ happyReduction_72 _
 happyReduction_72 _ _ _  = notHappyAtAll 
 
 happyReduce_73 = happySpecReduce_1  35 happyReduction_73
-happyReduction_73 (HappyTerminal (TIntLiteral happy_var_1))
+happyReduction_73 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpInt happy_var_1
+		 (ExpInt (unInt happy_var_1)
 	)
 happyReduction_73 _  = notHappyAtAll 
 
 happyReduce_74 = happySpecReduce_1  35 happyReduction_74
-happyReduction_74 (HappyTerminal (TDoubleLiteral happy_var_1))
+happyReduction_74 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpDouble happy_var_1
+		 (ExpDouble (unDouble happy_var_1)
 	)
 happyReduction_74 _  = notHappyAtAll 
 
 happyReduce_75 = happySpecReduce_1  35 happyReduction_75
-happyReduction_75 (HappyTerminal (TStringLiteral happy_var_1))
+happyReduction_75 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpString happy_var_1
+		 (ExpString (unString happy_var_1)
 	)
 happyReduction_75 _  = notHappyAtAll 
 
@@ -1815,44 +1815,44 @@ happyNewToken action sts stk [] =
 happyNewToken action sts stk (tk:tks) =
 	let cont i = action i i tk (HappyState action) sts stk tks in
 	case tk of {
-	TInt -> cont 36;
-	TDouble -> cont 37;
-	TBoolean -> cont 38;
-	TVoid -> cont 39;
-	TFalseLiteral -> cont 40;
-	TTrueLiteral -> cont 41;
-	TIntLiteral happy_dollar_dollar -> cont 42;
-	TDoubleLiteral happy_dollar_dollar -> cont 43;
-	TStringLiteral happy_dollar_dollar -> cont 44;
-	TLeftParen -> cont 45;
-	TRightParen -> cont 46;
-	TLeftBrace -> cont 47;
-	TRightBrace -> cont 48;
-	TComma -> cont 49;
-	TSemicolon -> cont 50;
-	TAssignSign -> cont 51;
-	TIncrement -> cont 52;
-	TDecrement -> cont 53;
-	TOr -> cont 54;
-	TAnd -> cont 55;
-	TEqualsSign -> cont 56;
-	TNotEqualsSign -> cont 57;
-	TLessSign -> cont 58;
-	TGreaterSign -> cont 59;
-	TLeOrEqSign -> cont 60;
-	TGrOrEqSign -> cont 61;
-	TPlusSign -> cont 62;
-	TMinusSign -> cont 63;
-	TDivSign -> cont 64;
-	TModSign -> cont 65;
-	TMultiSign -> cont 66;
-	TNot -> cont 67;
-	TIf -> cont 68;
-	TElse -> cont 69;
-	TWhile -> cont 70;
-	TFor -> cont 71;
-	TReturn -> cont 72;
-	TIdent happy_dollar_dollar -> cont 73;
+	Pos _ TInt -> cont 36;
+	Pos _ TDouble -> cont 37;
+	Pos _ TBoolean -> cont 38;
+	Pos _ TVoid -> cont 39;
+	Pos _ TFalseLiteral -> cont 40;
+	Pos _ TTrueLiteral -> cont 41;
+	Pos _ (TIntLiteral _) -> cont 42;
+	Pos _ (TDoubleLiteral _) -> cont 43;
+	Pos _ (TStringLiteral _) -> cont 44;
+	Pos _ TLeftParen -> cont 45;
+	Pos _ TRightParen -> cont 46;
+	Pos _ TLeftBrace -> cont 47;
+	Pos _ TRightBrace -> cont 48;
+	Pos _ TComma -> cont 49;
+	Pos _ TSemicolon -> cont 50;
+	Pos _ TAssignSign -> cont 51;
+	Pos _ TIncrement -> cont 52;
+	Pos _ TDecrement -> cont 53;
+	Pos _ TOr -> cont 54;
+	Pos _ TAnd -> cont 55;
+	Pos _ TEqualsSign -> cont 56;
+	Pos _ TNotEqualsSign -> cont 57;
+	Pos _ TLessSign -> cont 58;
+	Pos _ TGreaterSign -> cont 59;
+	Pos _ TLeOrEqSign -> cont 60;
+	Pos _ TGrOrEqSign -> cont 61;
+	Pos _ TPlusSign -> cont 62;
+	Pos _ TMinusSign -> cont 63;
+	Pos _ TDivSign -> cont 64;
+	Pos _ TModSign -> cont 65;
+	Pos _ TMultiSign -> cont 66;
+	Pos _ TNot -> cont 67;
+	Pos _ TIf -> cont 68;
+	Pos _ TElse -> cont 69;
+	Pos _ TWhile -> cont 70;
+	Pos _ TFor -> cont 71;
+	Pos _ TReturn -> cont 72;
+	Pos _ (TIdent _) -> cont 73;
 	_ -> happyError' (tk:tks)
 	}
 
@@ -1873,7 +1873,7 @@ happyReturn = (return)
 happyThen1 m k tks = (>>=) m (\a -> k a tks)
 happyReturn1 :: () => a -> b -> HappyIdentity a
 happyReturn1 = \a tks -> (return) a
-happyError' :: () => [(Token)] -> HappyIdentity a
+happyError' :: () => [(PosToken)] -> HappyIdentity a
 happyError' = HappyIdentity . parseError
 
 javaletteParse tks = happyRunIdentity happySomeParser where
@@ -1882,13 +1882,29 @@ javaletteParse tks = happyRunIdentity happySomeParser where
 happySeq = happyDontSeq
 
 
+unWrap :: PosToken -> Token
+unWrap (Pos pos token) = token
+
+unIdent :: PosToken -> String
+unIdent (Pos p (TStringLiteral str)) = str
+
+unInt :: PosToken -> Int
+unInt (Pos p (TIntLiteral i)) = i
+
+unDouble :: PosToken -> Double
+unDouble (Pos p (TDoubleLiteral d)) = d
+
+unString :: PosToken -> String
+unString (Pos p (TStringLiteral s)) = s
+
+
 type Ident = String
 type IntLiteral = Int
 type DoubleLiteral = Double
 type StringLiteral = String
 
-parseError :: [Token] -> a
-parseError _ = error "Parse error"
+parseError :: [PosToken] -> a
+parseError token = error $ "Parse error" ++ (show token)
 
 data Type = TypeInt
 			| TypeDouble

@@ -8,7 +8,10 @@ main = do
 	str <- getContents 
 	case (javaletteLex str) of
 		Left l -> putStrLn $ "wystapil blad: " ++ l
-		Right r -> 
-			let parseTree = javaletteParse r
-			putStrLn ("parseTree:" ++ show(parseTree)) 
-			print "done" 
+		Right (tokens, errors) ->  do
+			if (length errors) > 0
+				then putStrLn $ "Sa bledy " ++ errors
+				else do
+					let parseTree = javaletteParse tokens
+					putStrLn ("parseTree:" ++ show(parseTree)) 
+					print "done" 
