@@ -260,6 +260,8 @@ data Token = TInt
             | TEOF
             deriving (Eq, Show)
 
+
+
 data Pos a = Pos (Int, Int) a
                 deriving (Eq, Show)
 type PosToken = Pos Token
@@ -303,7 +305,6 @@ javaletteLex :: String -> Either String ([PosToken], [LexerError])
 javaletteLex str = runAlex str $ do
                     tokens <- getTokens
                     errs <- getErrors
-                    --return [Pos (0,0) TInt]
                     return (tokens, errs)
     where getTokens = do
             scan@(Pos pos token) <- alexMonadScan

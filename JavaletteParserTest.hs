@@ -10,8 +10,8 @@ main = do
 		Left l -> putStrLn $ "wystapil blad: " ++ l
 		Right (tokens, errors) ->  do
 			if (length errors) > 0
-				then putStrLn $ "Sa bledy " ++ show(errors)
+				then putStrLn $ "Bledy leksykalne: " ++ show(errors)
 				else do
 					let parseTree = javaletteParse tokens
-					putStrLn ("parseTree:" ++ show(parseTree)) 
+					putStrLn $ "Nie ma bledow " ++ ("parseTree:" ++ show(parseTree)) 
 					print "done" 
