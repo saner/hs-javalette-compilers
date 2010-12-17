@@ -108,21 +108,11 @@ data Token = TInt
             | TEOF
             deriving (Eq, Show)
 
-type PosComment = (Int, Int)
-
-beginComment :: AlexInput -> Int -> Alex PosComment
-beginComment (AlexPn _ line col, _, str) len =
-             do let comment = (line, col)
-                    usr_st = alex_ust alx
-                    errs = errors usr_st
-                Right(alx { alex_ust = usr_st { errors = (err:errs) } }, ())
-                skip input len
-
 
 
 data Pos a = Pos (Int, Int) a
                 deriving (Eq, Show)
-type PosToken = Pos Token
+type PosToken = Token Pos
 
 mkToken :: Token -> AlexInput -> Int -> Alex PosToken
 mkToken token (AlexPn _ line col, _, str) len = 
@@ -137,10 +127,10 @@ alexEOF = do
         return $ Pos (line,col) TEOF
 
 type LexerError = Pos String
-data AlexUserState = AlexUserState { errors :: [LexerError] , mlcomments :: [PosComment]}
+data AlexUserState = AlexUserState { errors :: [LexerError] }
 
 alexInitUserState :: AlexUserState
-alexInitUserState = AlexUserState { errors = [] , mlcomments = []}
+alexInitUserState = AlexUserState { errors = [] }
 
 lexError :: AlexInput -> Int -> Alex PosToken
 lexError input len =

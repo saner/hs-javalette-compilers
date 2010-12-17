@@ -1229,7 +1229,7 @@ happyReduction_4 (_ `HappyStk`
 	(HappyAbsSyn22  happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn6
-		 (Function (unIdent happy_var_2) happy_var_1 happy_var_4 happy_var_7
+		 (Pos (getPos happy_var_1) $ Function (unIdent happy_var_2) happy_var_1 happy_var_4 happy_var_7
 	) `HappyStk` happyRest
 
 happyReduce_5 = happySpecReduce_1  7 happyReduction_5
@@ -1320,9 +1320,9 @@ happyReduction_16 _  = notHappyAtAll
 happyReduce_17 = happySpecReduce_3  10 happyReduction_17
 happyReduction_17 _
 	(HappyAbsSyn11  happy_var_2)
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn10
-		 (StmtList happy_var_2
+		 (Pos (getPos happy_var_1) $ StmtList happy_var_2
 	)
 happyReduction_17 _ _ _  = notHappyAtAll 
 
@@ -1344,7 +1344,7 @@ happyReduction_20 _
 	(HappyAbsSyn13  happy_var_2)
 	(HappyAbsSyn22  happy_var_1)
 	 =  HappyAbsSyn12
-		 (StmtVarsDecl happy_var_1 happy_var_2
+		 (Pos (getPos happy_var_1) $ StmtVarsDecl happy_var_1 happy_var_2
 	)
 happyReduction_20 _ _ _  = notHappyAtAll 
 
@@ -1367,7 +1367,7 @@ happyReduction_22 _ _ _  = notHappyAtAll
 happyReduce_23 = happySpecReduce_1  14 happyReduction_23
 happyReduction_23 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn14
-		 (Decl (unIdent happy_var_1) Nothing
+		 (Pos (getPos happy_var_1) $ Decl (unIdent happy_var_1) Nothing
 	)
 happyReduction_23 _  = notHappyAtAll 
 
@@ -1376,7 +1376,7 @@ happyReduction_24 (HappyAbsSyn23  happy_var_3)
 	_
 	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn14
-		 (Decl (unIdent happy_var_1) (Just happy_var_3)
+		 (Pos (getPos happy_var_1) $ Decl (unIdent happy_var_1) (Just happy_var_3)
 	)
 happyReduction_24 _ _ _  = notHappyAtAll 
 
@@ -1384,7 +1384,7 @@ happyReduce_25 = happySpecReduce_2  15 happyReduction_25
 happyReduction_25 _
 	(HappyAbsSyn16  happy_var_1)
 	 =  HappyAbsSyn15
-		 (StmtAssig happy_var_1
+		 (Pos (getPos happy_var_1) $ StmtAssig happy_var_1
 	)
 happyReduction_25 _ _  = notHappyAtAll 
 
@@ -1393,7 +1393,7 @@ happyReduction_26 (HappyAbsSyn23  happy_var_3)
 	_
 	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn16
-		 (AssigEq (unIdent happy_var_1) happy_var_3
+		 (Pos (getPos happy_var_1) $ AssigEq (unIdent happy_var_1) happy_var_3
 	)
 happyReduction_26 _ _ _  = notHappyAtAll 
 
@@ -1401,7 +1401,7 @@ happyReduce_27 = happySpecReduce_2  16 happyReduction_27
 happyReduction_27 _
 	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn16
-		 (AssigInc (unIdent happy_var_1)
+		 (Pos (getPos happy_var_1) $ AssigInc (unIdent happy_var_1)
 	)
 happyReduction_27 _ _  = notHappyAtAll 
 
@@ -1409,7 +1409,7 @@ happyReduce_28 = happySpecReduce_2  16 happyReduction_28
 happyReduction_28 _
 	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn16
-		 (AssigDec (unIdent happy_var_1)
+		 (Pos (getPos happy_var_1) $ AssigDec (unIdent happy_var_1)
 	)
 happyReduction_28 _ _  = notHappyAtAll 
 
@@ -1418,10 +1418,10 @@ happyReduction_29 ((HappyAbsSyn9  happy_var_5) `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn23  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	_ `HappyStk`
+	(HappyTerminal happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn17
-		 (StmtIf happy_var_3 happy_var_5 StmtEmpty
+		 (Pos (getPos happy_var_1) $ StmtIf happy_var_3 happy_var_5 $ Pos (getPos happy_var_1) StmtEmpty
 	) `HappyStk` happyRest
 
 happyReduce_30 = happyReduce 7 17 happyReduction_30
@@ -1431,10 +1431,10 @@ happyReduction_30 ((HappyAbsSyn9  happy_var_7) `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn23  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	_ `HappyStk`
+	(HappyTerminal happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn17
-		 (StmtIf happy_var_3 happy_var_5 happy_var_7
+		 (Pos (getPos happy_var_1) $ StmtIf happy_var_3 happy_var_5 happy_var_7
 	) `HappyStk` happyRest
 
 happyReduce_31 = happyReduce 5 18 happyReduction_31
@@ -1442,10 +1442,10 @@ happyReduction_31 ((HappyAbsSyn9  happy_var_5) `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn23  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	_ `HappyStk`
+	(HappyTerminal happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn18
-		 (StmtWhile happy_var_3 happy_var_5
+		 (Pos (getPos happy_var_1) $ StmtWhile happy_var_3 happy_var_5
 	) `HappyStk` happyRest
 
 happyReduce_32 = happyReduce 9 19 happyReduction_32
@@ -1457,25 +1457,26 @@ happyReduction_32 ((HappyAbsSyn9  happy_var_9) `HappyStk`
 	_ `HappyStk`
 	(HappyAbsSyn16  happy_var_3) `HappyStk`
 	_ `HappyStk`
-	_ `HappyStk`
+	(HappyTerminal happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn19
-		 (StmtFor happy_var_3 happy_var_5 happy_var_7 happy_var_9
+		 (Pos (getPos happy_var_1) $ StmtFor happy_var_3 happy_var_5 happy_var_7 happy_var_9
 	) `HappyStk` happyRest
 
 happyReduce_33 = happySpecReduce_2  20 happyReduction_33
 happyReduction_33 _
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn20
-		 (StmtReturn Nothing
+		 (Pos (getPos happy_var_1) $ StmtReturn Nothing
 	)
+happyReduction_33 _ _  = notHappyAtAll 
 
 happyReduce_34 = happySpecReduce_3  20 happyReduction_34
 happyReduction_34 _
 	(HappyAbsSyn23  happy_var_2)
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn20
-		 (StmtReturn (Just happy_var_2)
+		 (Pos (getPos happy_var_1) $ StmtReturn (Just happy_var_2)
 	)
 happyReduction_34 _ _ _  = notHappyAtAll 
 
@@ -1483,33 +1484,37 @@ happyReduce_35 = happySpecReduce_2  21 happyReduction_35
 happyReduction_35 _
 	(HappyAbsSyn23  happy_var_1)
 	 =  HappyAbsSyn21
-		 (StmtExp happy_var_1
+		 (Pos (getPos happy_var_1) $ StmtExp happy_var_1
 	)
 happyReduction_35 _ _  = notHappyAtAll 
 
 happyReduce_36 = happySpecReduce_1  22 happyReduction_36
-happyReduction_36 _
+happyReduction_36 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn22
-		 (TypeInt
+		 (Pos (getPos happy_var_1) TypeInt
 	)
+happyReduction_36 _  = notHappyAtAll 
 
 happyReduce_37 = happySpecReduce_1  22 happyReduction_37
-happyReduction_37 _
+happyReduction_37 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn22
-		 (TypeDouble
+		 (Pos (getPos happy_var_1) TypeDouble
 	)
+happyReduction_37 _  = notHappyAtAll 
 
 happyReduce_38 = happySpecReduce_1  22 happyReduction_38
-happyReduction_38 _
+happyReduction_38 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn22
-		 (TypeBoolean
+		 (Pos (getPos happy_var_1) TypeBoolean
 	)
+happyReduction_38 _  = notHappyAtAll 
 
 happyReduce_39 = happySpecReduce_1  22 happyReduction_39
-happyReduction_39 _
+happyReduction_39 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn22
-		 (TypeVoid
+		 (Pos (getPos happy_var_1) TypeVoid
 	)
+happyReduction_39 _  = notHappyAtAll 
 
 happyReduce_40 = happySpecReduce_1  23 happyReduction_40
 happyReduction_40 (HappyAbsSyn24  happy_var_1)
@@ -1530,7 +1535,7 @@ happyReduction_42 (HappyAbsSyn25  happy_var_3)
 	_
 	(HappyAbsSyn24  happy_var_1)
 	 =  HappyAbsSyn24
-		 (ExpBinaryOp BoolOr happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp BoolOr happy_var_1 happy_var_3
 	)
 happyReduction_42 _ _ _  = notHappyAtAll 
 
@@ -1546,7 +1551,7 @@ happyReduction_44 (HappyAbsSyn26  happy_var_3)
 	_
 	(HappyAbsSyn25  happy_var_1)
 	 =  HappyAbsSyn25
-		 (ExpBinaryOp BoolAnd happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp BoolAnd happy_var_1 happy_var_3
 	)
 happyReduction_44 _ _ _  = notHappyAtAll 
 
@@ -1562,7 +1567,7 @@ happyReduction_46 (HappyAbsSyn27  happy_var_3)
 	_
 	(HappyAbsSyn26  happy_var_1)
 	 =  HappyAbsSyn26
-		 (ExpBinaryOp ComperEq happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp ComperEq happy_var_1 happy_var_3
 	)
 happyReduction_46 _ _ _  = notHappyAtAll 
 
@@ -1571,7 +1576,7 @@ happyReduction_47 (HappyAbsSyn27  happy_var_3)
 	_
 	(HappyAbsSyn26  happy_var_1)
 	 =  HappyAbsSyn26
-		 (ExpBinaryOp ComperNotEq happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp ComperNotEq happy_var_1 happy_var_3
 	)
 happyReduction_47 _ _ _  = notHappyAtAll 
 
@@ -1587,7 +1592,7 @@ happyReduction_49 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpBinaryOp RelaLe happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp RelaLe happy_var_1 happy_var_3
 	)
 happyReduction_49 _ _ _  = notHappyAtAll 
 
@@ -1596,7 +1601,7 @@ happyReduction_50 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpBinaryOp RelaGt happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp RelaGt happy_var_1 happy_var_3
 	)
 happyReduction_50 _ _ _  = notHappyAtAll 
 
@@ -1605,7 +1610,7 @@ happyReduction_51 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpBinaryOp RelaLeEq happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp RelaLeEq happy_var_1 happy_var_3
 	)
 happyReduction_51 _ _ _  = notHappyAtAll 
 
@@ -1614,7 +1619,7 @@ happyReduction_52 (HappyAbsSyn28  happy_var_3)
 	_
 	(HappyAbsSyn27  happy_var_1)
 	 =  HappyAbsSyn27
-		 (ExpBinaryOp RelaGtEq happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp RelaGtEq happy_var_1 happy_var_3
 	)
 happyReduction_52 _ _ _  = notHappyAtAll 
 
@@ -1630,7 +1635,7 @@ happyReduction_54 (HappyAbsSyn29  happy_var_3)
 	_
 	(HappyAbsSyn28  happy_var_1)
 	 =  HappyAbsSyn28
-		 (ExpBinaryOp AddiPlus happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp AddiPlus happy_var_1 happy_var_3
 	)
 happyReduction_54 _ _ _  = notHappyAtAll 
 
@@ -1639,7 +1644,7 @@ happyReduction_55 (HappyAbsSyn29  happy_var_3)
 	_
 	(HappyAbsSyn28  happy_var_1)
 	 =  HappyAbsSyn28
-		 (ExpBinaryOp AddiMinus happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp AddiMinus happy_var_1 happy_var_3
 	)
 happyReduction_55 _ _ _  = notHappyAtAll 
 
@@ -1655,7 +1660,7 @@ happyReduction_57 (HappyAbsSyn30  happy_var_3)
 	_
 	(HappyAbsSyn29  happy_var_1)
 	 =  HappyAbsSyn29
-		 (ExpBinaryOp MultiMulti happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp MultiMulti happy_var_1 happy_var_3
 	)
 happyReduction_57 _ _ _  = notHappyAtAll 
 
@@ -1664,7 +1669,7 @@ happyReduction_58 (HappyAbsSyn30  happy_var_3)
 	_
 	(HappyAbsSyn29  happy_var_1)
 	 =  HappyAbsSyn29
-		 (ExpBinaryOp MultiDiv happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp MultiDiv happy_var_1 happy_var_3
 	)
 happyReduction_58 _ _ _  = notHappyAtAll 
 
@@ -1673,7 +1678,7 @@ happyReduction_59 (HappyAbsSyn30  happy_var_3)
 	_
 	(HappyAbsSyn29  happy_var_1)
 	 =  HappyAbsSyn29
-		 (ExpBinaryOp MultiMod happy_var_1 happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpBinaryOp MultiMod happy_var_1 happy_var_3
 	)
 happyReduction_59 _ _ _  = notHappyAtAll 
 
@@ -1686,25 +1691,25 @@ happyReduction_60 _  = notHappyAtAll
 
 happyReduce_61 = happySpecReduce_2  30 happyReduction_61
 happyReduction_61 (HappyAbsSyn30  happy_var_2)
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn30
-		 (ExpUnaryOp UnaryNot happy_var_2
+		 (Pos (getPos happy_var_1) $ ExpUnaryOp UnaryNot happy_var_2
 	)
 happyReduction_61 _ _  = notHappyAtAll 
 
 happyReduce_62 = happySpecReduce_2  30 happyReduction_62
 happyReduction_62 (HappyAbsSyn30  happy_var_2)
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn30
-		 (ExpUnaryOp UnaryPlus happy_var_2
+		 (Pos (getPos happy_var_1) $ ExpUnaryOp UnaryPlus happy_var_2
 	)
 happyReduction_62 _ _  = notHappyAtAll 
 
 happyReduce_63 = happySpecReduce_2  30 happyReduction_63
 happyReduction_63 (HappyAbsSyn30  happy_var_2)
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn30
-		 (ExpUnaryOp UnaryMinus happy_var_2
+		 (Pos (getPos happy_var_1) $ ExpUnaryOp UnaryMinus happy_var_2
 	)
 happyReduction_63 _ _  = notHappyAtAll 
 
@@ -1729,7 +1734,7 @@ happyReduction_66 (_ `HappyStk`
 	(HappyTerminal happy_var_1) `HappyStk`
 	happyRest)
 	 = HappyAbsSyn32
-		 (ExpCallFunc (unIdent happy_var_1) happy_var_3
+		 (Pos (getPos happy_var_1) $ ExpCallFunc (unIdent happy_var_1) happy_var_3
 	) `HappyStk` happyRest
 
 happyReduce_67 = happySpecReduce_1  33 happyReduction_67
@@ -1756,7 +1761,7 @@ happyReduction_69  =  HappyAbsSyn33
 happyReduce_70 = happySpecReduce_1  34 happyReduction_70
 happyReduction_70 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn34
-		 (ExpVar (unIdent happy_var_1)
+		 (Pos (getPos happy_var_1) $ ExpVar (unIdent happy_var_1)
 	)
 happyReduction_70 _  = notHappyAtAll 
 
@@ -1770,44 +1775,46 @@ happyReduction_71 _  = notHappyAtAll
 happyReduce_72 = happySpecReduce_3  34 happyReduction_72
 happyReduction_72 _
 	(HappyAbsSyn23  happy_var_2)
-	_
+	(HappyTerminal happy_var_1)
 	 =  HappyAbsSyn34
-		 (ExpExp happy_var_2
+		 (Pos (getPos happy_var_1) $ ExpExp happy_var_2
 	)
 happyReduction_72 _ _ _  = notHappyAtAll 
 
 happyReduce_73 = happySpecReduce_1  35 happyReduction_73
 happyReduction_73 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpInt (unInt happy_var_1)
+		 (Pos (getPos happy_var_1) $ ExpInt (unInt happy_var_1)
 	)
 happyReduction_73 _  = notHappyAtAll 
 
 happyReduce_74 = happySpecReduce_1  35 happyReduction_74
 happyReduction_74 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpDouble (unDouble happy_var_1)
+		 (Pos (getPos happy_var_1) $ ExpDouble (unDouble happy_var_1)
 	)
 happyReduction_74 _  = notHappyAtAll 
 
 happyReduce_75 = happySpecReduce_1  35 happyReduction_75
 happyReduction_75 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpString (unString happy_var_1)
+		 (Pos (getPos happy_var_1) $ ExpString (unString happy_var_1)
 	)
 happyReduction_75 _  = notHappyAtAll 
 
 happyReduce_76 = happySpecReduce_1  35 happyReduction_76
-happyReduction_76 _
+happyReduction_76 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpFalse
+		 (Pos (getPos happy_var_1) ExpFalse
 	)
+happyReduction_76 _  = notHappyAtAll 
 
 happyReduce_77 = happySpecReduce_1  35 happyReduction_77
-happyReduction_77 _
+happyReduction_77 (HappyTerminal happy_var_1)
 	 =  HappyAbsSyn35
-		 (ExpTrue
+		 (Pos (getPos happy_var_1) ExpTrue
 	)
+happyReduction_77 _  = notHappyAtAll 
 
 happyNewToken action sts stk [] =
 	action 74 74 notHappyAtAll (HappyState action) sts stk []
@@ -1885,8 +1892,8 @@ happySeq = happyDontSeq
 unWrap :: PosToken -> Token
 unWrap (Pos pos token) = token
 
-unIdent :: PosToken -> String
-unIdent (Pos p (TIdent str)) = str
+unIdent :: PosToken -> PosIdent
+unIdent (Pos p (TIdent str)) = Pos p str
 
 unInt :: PosToken -> Int
 unInt (Pos p (TIntLiteral i)) = i
@@ -1897,11 +1904,21 @@ unDouble (Pos p (TDoubleLiteral d)) = d
 unString :: PosToken -> String
 unString (Pos p (TStringLiteral s)) = s
 
+getPos (Pos p t) = p
+
+
 
 type Ident = String
+type PosIdent = Pos Ident
+
 type IntLiteral = Int
+type PosIntLiteral = Pos IntLiteral
+
 type DoubleLiteral = Double
+type PosDobuleLiteral = Pos DoubleLiteral
+
 type StringLiteral = String
+type PosStringLiteral = Pos StringLiteral
 
 parseError :: [PosToken] -> a
 parseError token = error $ "Parse error" ++ (show token)
@@ -1910,28 +1927,39 @@ data Type = TypeInt
 			| TypeDouble
 			| TypeBoolean
 			| TypeVoid
+			| TypeString
+			| TypeAny
+			deriving (Show, Eq)
+type PosType = Pos Type
+
+data Program = Program [PosFunction]
 			deriving (Show, Eq)
 
-data Program = Program [Function]
+data Function = Function PosIdent PosType [(PosIdent, PosType)] [PosStmt]
 			deriving (Show, Eq)
-data Function = Function Ident Type [(Ident, Type)] [Stmt]
-			deriving (Show, Eq)
-data Stmt = StmtList [Stmt]
-		 | StmtVarsDecl Type [Decl]
-		 | StmtAssig Assig
-		 | StmtIf Exp Stmt Stmt
-		 | StmtWhile Exp Stmt
-		 | StmtFor Assig Exp Assig Stmt
-		 | StmtReturn (Maybe Exp)
-		 | StmtExp Exp
+type PosFunction = Pos Function
+
+data Stmt = StmtList [PosStmt]
+		 | StmtVarsDecl PosType [PosDecl]
+		 | StmtAssig PosAssig
+		 | StmtIf PosExp PosStmt PosStmt
+		 | StmtWhile PosExp PosStmt
+		 | StmtFor PosAssig PosExp PosAssig PosStmt
+		 | StmtReturn (Maybe PosExp)
+		 | StmtExp PosExp
 		 | StmtEmpty
 			deriving (Show, Eq)
-data Decl = Decl Ident (Maybe Exp)
+type PosStmt = Pos Stmt
+
+data Decl = Decl PosIdent (Maybe PosExp)
 			deriving (Show, Eq)
-data Assig = AssigEq Ident Exp
-		  | AssigInc Ident
-		  | AssigDec Ident
+type PosDecl = Pos Decl
+
+data Assig = AssigEq PosIdent PosExp
+		  | AssigInc PosIdent
+		  | AssigDec PosIdent
 			deriving (Show, Eq)
+type PosAssig = Pos Assig
 
 data BinaryOp = BoolAnd | BoolOr
 				| ComperEq | ComperNotEq
@@ -1943,18 +1971,19 @@ data BinaryOp = BoolAnd | BoolOr
 data UnaryOp = UnaryNot | UnaryPlus | UnaryMinus
 				deriving (Show, Eq)
 
-data Exp = ExpList [Exp]
-		| ExpBinaryOp BinaryOp Exp Exp
-		| ExpUnaryOp UnaryOp Exp
-		| ExpCallFunc Ident [Exp]
-		| ExpVar Ident
-		| ExpExp Exp
+data Exp = ExpList [PosExp]
+		| ExpBinaryOp BinaryOp PosExp PosExp
+		| ExpUnaryOp UnaryOp PosExp
+		| ExpCallFunc PosIdent [PosExp]
+		| ExpVar PosIdent
+		| ExpExp PosExp
 		| ExpInt Int
 		| ExpDouble Double
 		| ExpString String
 		| ExpTrue
 		| ExpFalse
 		deriving (Show, Eq)
+type PosExp = Pos Exp
 {-# LINE 1 "templates\GenericTemplate.hs" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
