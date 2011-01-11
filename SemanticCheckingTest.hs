@@ -55,10 +55,10 @@ main = do
 		Left l -> putStrLn $ "Lexer: wystapil blad: " ++ l
 		Right (tokens, errors) ->  do
 			if (length errors) > 0
-				then  return () --putStrLn $ "Bledy leksykalne: " ++ show(errors)
+				then  putStrLn $ "Bledy leksykalne: " ++ show(errors)
 				else do
 					let parseTree = javaletteParse tokens
-					putStrLn $ "Parser: Nie ma bledow "-- ++ ("parseTree:" ++ show(parseTree)) 
+					--putStrLn $ "Parser: Nie ma bledow " ++ ("parseTree:" ++ show(parseTree)) 
 					
 					-- odpalenie sprawdzenia typow
 					let (state, messages) = execState (checkProgram parseTree) ([],[])

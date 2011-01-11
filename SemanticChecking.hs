@@ -39,6 +39,31 @@ inList e (el:els) =
 			inList e els
 inList e [] = False
 
+binOpName :: BinaryOp -> String
+binOpName binOp =
+	case binOp of
+		BoolAnd -> "&&"
+		BoolOr -> "||"
+		ComperEq -> "=="
+		ComperNotEq -> "!="
+		RelaLe -> "<"
+		RelaLeEq -> "<="
+		RelaGt -> ">"
+		RelaGtEq -> ">="
+		AddiPlus -> "+"
+		AddiMinus -> "-"
+		MultiMulti -> "*"
+		MultiDiv -> "/"
+		MultiMod -> "%"
+	
+unOpName :: UnaryOp -> String
+unOpName unOp =
+	case unOp of
+		UnaryNot -> "!"
+		UnaryPlus -> "+"
+		UnaryMinus -> "-"
+	
+
 -- funkcje pomocnicze
 addMessage :: Message -> Context () 
 addMessage message = do
@@ -150,12 +175,12 @@ wasReturn = do
 		Just _ -> return True
 		Nothing -> return False
 
-checkWasReturn :: Context () -- hack
-checkWasReturn = do
+checkWasReturn :: Position -> Context () -- hack
+checkWasReturn pos = do
 	was <- wasReturn
 	if was
 		then return ()
-		else addMessage (Error "Nie bylo return" (0,0))
+		else addMessage (Error "Nie bylo return" pos)
 
 -- Program
 
@@ -214,18 +239,18 @@ checkFunctions posFuns = do
 	check posFuns
 	return ()
 	where
-		check ((Pos _ fun):[]) =
+		check (fun:[]) =
 			checkFunction fun
-		check ((Pos _ fun):funs) = do
+		check (fun:funs) = do
 			checkFunction fun
 			check funs
 
 
 -- Function
 
-checkFunction :: Function -> Context ()
+checkFunction :: PosFunction -> Context ()
 
-checkFunction (Function (Pos _ ident) (Pos pos returnTyp) args stms) = do
+checkFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) = do
 	pushEmptySymbolTable
 
 	addSymbol $ VarSymbol "**return_type**" returnTyp --hack
@@ -236,7 +261,7 @@ checkFunction (Function (Pos _ ident) (Pos pos returnTyp) args stms) = do
 	addArgs args
 	checkBody stms
 
-	checkWasReturn -- hack
+	checkWasReturn pos -- hack
 	
 	popSymbolTable
 
@@ -247,16 +272,16 @@ checkFunction (Function (Pos _ ident) (Pos pos returnTyp) args stms) = do
 			addArgs args
 
 		checkBody [] = return ()
-		checkBody ((Pos _ stmt):stms) = do
+		checkBody (stmt:stms) = do
 			checkStmt stmt
 			checkBody stms
 	
 
 -- Stmt
 
-checkStmt :: Stmt -> Context ()
+checkStmt :: PosStmt -> Context ()
 
-checkStmt (StmtList posStms) = do
+checkStmt (Pos pos (StmtList posStms)) = do
 
 	pushEmptySymbolTable
 	check posStms
@@ -268,31 +293,32 @@ checkStmt (StmtList posStms) = do
 
 	where
 		check [] = return ()
-		check ((Pos _ stm):stms) = do
+		check (stm:stms) = do
 			checkStmt stm
 			check stms
 
 
-checkStmt (StmtVarsDecl (Pos pos typ) posDecls) = do
+checkStmt (Pos pos (StmtVarsDecl (Pos _ typ) posDecls)) = do
 	addVar posDecls
 	where
-		addVar ((Pos p decl):pDecls) = do
+		addVar (decl:pDecls) = do
 			checkDecl typ decl
 			addVar pDecls
 		addVar [] = return ()
 
-checkStmt (StmtAssig (Pos pos assig)) = do
-	checkAssig assig
+checkStmt (Pos pos (StmtAssig posAssig)) = do
+	checkAssig posAssig
 	return()
 
-checkStmt (StmtIf (Pos posE exp) (Pos pIf stIf) (Pos pElse stElse)) = do
-	checkExp exp
+checkStmt (Pos pos (StmtIf posExp posStIf posStElse)) = do
+	checkExp posExp
 
 	pushEmptySymbolTable
-	checkStmt stIf
+	checkStmt posStIf
 	returnIf <- wasReturn
 	popSymbolTable
 
+	let (Pos _ stElse) = posStElse
 	if stElse == StmtEmpty
 		then
 			if returnIf
@@ -300,30 +326,30 @@ checkStmt (StmtIf (Pos posE exp) (Pos pIf stIf) (Pos pElse stElse)) = do
 				else return ()
 		else do
 			pushEmptySymbolTable
-			checkStmt stElse
+			checkStmt posStElse
 			returnElse <- wasReturn
 			popSymbolTable
 			if returnIf && returnElse
 				then addWasReturn
 				else return ()
 
-checkStmt (StmtWhile (Pos posE exp) (Pos posW stmt)) = do
-	checkExp exp
+checkStmt (Pos pos (StmtWhile posExp posStmt)) = do
+	checkExp posExp
 	
 	pushEmptySymbolTable
-	checkStmt stmt
+	checkStmt posStmt
 	popSymbolTable
 
-checkStmt (StmtFor (Pos posA assig) (Pos posE exp) (Pos posA2 assig2) (Pos posS stmt)) = do
-	checkAssig assig
-	checkExp exp
-	checkAssig assig2
+checkStmt (Pos pos (StmtFor posAssig1 posExp posAssig2 posStmt)) = do
+	checkAssig posAssig1
+	checkExp posExp
+	checkAssig posAssig2
 
 	pushEmptySymbolTable
-	checkStmt stmt
+	checkStmt posStmt
 	popSymbolTable
 
-checkStmt (StmtReturn maybePosExp) = do
+checkStmt (Pos pos (StmtReturn maybePosExp)) = do
 	foundSymbol <- findIdentSymbol "**return_type**"
 	addWasReturn
 	case maybePosExp of
@@ -331,14 +357,14 @@ checkStmt (StmtReturn maybePosExp) = do
 			case foundSymbol of
 				Just symbol ->
 					case symbol of
-						VarSymbol ident varTyp -> 
+						VarSymbol ident varTyp  -> 
 							if varTyp == TypeVoid
 								then return ()
 								else do
-									addMessage (Error "Zly typ zwracanej wartosci" (0,0))
+									addMessage (Error "Zly typ zwracanej wartosci" pos)
 									return ()
-		Just (Pos pos exp) -> do
-			expTyp <- checkExp exp
+		Just posExp -> do
+			expTyp <- checkExp posExp
 			case foundSymbol of
 				Just symbol ->
 					case symbol of
@@ -349,24 +375,24 @@ checkStmt (StmtReturn maybePosExp) = do
 									addMessage (Error "Zly typ zwracanej wartosci" pos)
 									return ()
 
-checkStmt (StmtExp (Pos pos exp)) = do
-	checkExp exp
+checkStmt (Pos pos (StmtExp posExp)) = do
+	checkExp posExp
 	return()
 
-checkStmt (StmtEmpty) = do
+checkStmt (Pos pos (StmtEmpty)) = do
 	return()
 
 
 -- Decl
-checkDecl :: Type -> Decl -> Context ()
-checkDecl typ (Decl (Pos pos ident) maybeExp) = do
+checkDecl :: Type -> PosDecl -> Context ()
+checkDecl typ (Pos pos (Decl (Pos _ ident) maybeExp)) = do
 	foundSymbol <- findSymbolInTopTable ident
 	case foundSymbol of
 		Nothing -> 
 			case maybeExp of
 				Nothing -> addSymbol (VarSymbol ident typ) 
-				Just (Pos _ exp) -> do
-					typExp <- checkExp exp
+				Just posExp -> do
+					typExp <- checkExp posExp
 					if compatibleAssigTypes typ typExp
 						then addSymbol (VarSymbol ident typ) 
 						else do
@@ -381,11 +407,11 @@ checkDecl typ (Decl (Pos pos ident) maybeExp) = do
 
 
 -- Assig
-checkAssig :: Assig -> Context ()
+checkAssig :: PosAssig -> Context ()
 
-checkAssig (AssigEq (Pos posA ident) (Pos posE exp)) = do
+checkAssig (Pos pos (AssigEq (Pos posA ident) posExp)) = do
 	foundSymbol <- findIdentSymbol ident
-	typ <- checkExp exp
+	typ <- checkExp posExp
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie mozna dokonac przypisania, nie ma zadeklarowanej zmiennej o nazwie '" ++ ident ++ "' ") posA)
@@ -394,17 +420,17 @@ checkAssig (AssigEq (Pos posA ident) (Pos posE exp)) = do
 			case symbol of
 				VarSymbol ident varTyp ->
 					if compatibleAssigTypes varTyp typ
-						then return ()
+						then addSymbol $ VarSymbol ident varTyp
 						else addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
 				FunctionSymbol ident funTyp args ->
 						addMessage (Error (ident ++ "to funkcja, nie mozna przypisywac na funkcje") posA)
 						
-checkAssig (AssigInc (Pos pos ident)) = do
+checkAssig (Pos pos (AssigInc (Pos _ ident))) = do
 	foundSymbol <- findIdentSymbol ident
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie istnieje zmienna o nazwie '" ++ ident ++ "' ") pos)
-			addSymbol (VarSymbol ident TypeInt) 
+			addSymbol (VarSymbol ident TypeInt)
 		Just symbol ->
 			case symbol of
 				VarSymbol ident typ ->
@@ -414,23 +440,24 @@ checkAssig (AssigInc (Pos pos ident)) = do
 				FunctionSymbol ident funTyp args ->
 						addMessage (Error (ident ++ "to funkcja, nie mozna dokonac inc/dec na funkcji") pos)
 
-checkAssig (AssigDec (Pos pos ident)) = do
-	checkAssig (AssigInc (Pos pos ident))
+checkAssig (Pos pos (AssigDec (Pos _ ident))) = do
+	checkAssig (Pos pos (AssigInc (Pos pos ident)))
 
 -- Exp
-checkExp :: Exp -> Context Type
+checkExp :: PosExp -> Context Type
 
-checkExp (ExpList exps) = do
+checkExp (Pos pos (ExpList exps)) = do
 	check exps
 		where
 			check [] = return TypeAny
-			check ((Pos pos exp):exps) = do
+			check (exp:exps) = do
 				checkExp exp
 				check exps
 
-checkExp (ExpBinaryOp binOp (Pos pos1 exp1) (Pos pos2 exp2)) = do
-	typ1 <- checkExp exp1
-	typ2 <- checkExp exp2
+checkExp (Pos pos (ExpBinaryOp binOp posExp1 posExp2)) = do
+	typ1 <- checkExp posExp1
+	typ2 <- checkExp posExp2
+	let (Pos pos1 _) = posExp1
 
 	if inList binOp [BoolAnd, BoolOr]
 		then if (compatibleBoolTypes typ1) && (compatibleBoolTypes typ2)
@@ -442,35 +469,35 @@ checkExp (ExpBinaryOp binOp (Pos pos1 exp1) (Pos pos2 exp2)) = do
 				then if compatibleCompTypes typ1 typ2
 						then return TypeBoolean
 						else do
-							addMessage (Error ("Zle typy w operacji " ++ (show binOp)) pos1)
+							addMessage (Error ("Zle typy w operacji " ++ (binOpName binOp)) pos1)
 							return TypeBoolean
 				else case compatibleOpBinTypes typ1 typ2 of
 						TypeAny -> do
-							addMessage (Error ("Zle typy w operaci " ++ (show binOp)) pos1)
+							addMessage (Error ("Zle typy w operaci " ++ (binOpName binOp)) pos1)
 							return TypeAny
 						_ -> do
 							return (compatibleOpBinTypes typ1 typ2)
 
-checkExp (ExpUnaryOp unOp (Pos pos exp)) = do
-	typ <- checkExp exp
+checkExp (Pos pos (ExpUnaryOp unOp posExp)) = do
+	typ <- checkExp posExp
 
 	if unOp == UnaryNot
 		then
 			if compatibleBoolTypes typ
 				then return typ
 				else do
-					addMessage (Error ("Typ " ++ (show typ) ++ " niekompatybilny z operacja " ++ (show unOp)) pos)
+					addMessage (Error ("Typ " ++ (show typ) ++ " niekompatybilny z operacja " ++ (unOpName unOp)) pos)
 					return TypeBoolean
 		else
 			if compatibleArithTypes typ
 				then return typ
 				else do
-					addMessage (Error ("Typ " ++ (show typ) ++ " niekompatybilny z operacja " ++ (show unOp)) pos)
+					addMessage (Error ("Typ " ++ (show typ) ++ " niekompatybilny z operacja " ++ (unOpName unOp)) pos)
 					return TypeAny
 
-checkExp (ExpCallFunc (Pos pos ident) exps) = do
+checkExp (Pos pos (ExpCallFunc (Pos _ ident) exps)) = do
 	foundSymbol <- findIdentSymbol ident
-	let argsTypes = fmap (\(Pos _ e) -> checkExp e) exps
+	let argsTypes = fmap (\e -> checkExp e) exps
 
 	case foundSymbol of
 		Nothing -> do
@@ -499,7 +526,7 @@ checkExp (ExpCallFunc (Pos pos ident) exps) = do
 						addMessage (Error ("Nie istnieje funkcja o nazwie '" ++ ident ++ "' ") pos)
 						return TypeAny
 		
-checkExp (ExpVar (Pos pos ident)) = do
+checkExp (Pos pos (ExpVar (Pos _ ident))) = do
 	foundSymbol <- findIdentSymbol ident
 
 	case foundSymbol of
@@ -511,23 +538,22 @@ checkExp (ExpVar (Pos pos ident)) = do
 				FunctionSymbol ident funTyp args -> do
 						addMessage (Error ("Nie ma zmiennej o nazwie " ++ ident ++ ", ale istnieje taka funkcja") pos)
 						return TypeAny
-				VarSymbol ident typ -> do
-						return typ
+				VarSymbol ident typ -> return typ
 
-checkExp (ExpExp (Pos pos exp)) =
-	checkExp exp
+checkExp (Pos pos (ExpExp posExp)) =
+	checkExp posExp
 
-checkExp (ExpInt _) =
+checkExp (Pos pos (ExpInt _)) =
 	return TypeInt
 
-checkExp (ExpDouble _) =
+checkExp (Pos pos (ExpDouble _)) =
 	return TypeDouble
 
-checkExp (ExpString _) =
+checkExp (Pos pos (ExpString _)) =
 	return TypeString
 
-checkExp (ExpTrue) =
+checkExp (Pos pos (ExpTrue)) =
 	return TypeBoolean
 
-checkExp (ExpFalse) =
+checkExp (Pos pos (ExpFalse)) =
 	return TypeBoolean
