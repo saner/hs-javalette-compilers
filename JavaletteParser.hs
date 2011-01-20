@@ -1920,9 +1920,6 @@ type PosDobuleLiteral = Pos DoubleLiteral
 type StringLiteral = String
 type PosStringLiteral = Pos StringLiteral
 
-parseError :: [PosToken] -> a
-parseError token = error $ "Parse error" ++ (show token)
-
 data Type = TypeInt
 			| TypeDouble
 			| TypeBoolean
@@ -1984,6 +1981,62 @@ data Exp = ExpList [PosExp]
 		| ExpFalse
 		deriving (Show, Eq)
 type PosExp = Pos Exp
+
+
+-- obsluga bledow
+
+tokenString :: Token -> String
+tokenString token =
+	case token of
+		--TInt -> "int" pojawia sie blad parsowania w Haskellu bez powodu
+        TDouble -> "double"
+        TBoolean -> "boolean"
+        TString -> "string"
+        TVoid -> "void"
+        TFalseLiteral -> "false"
+        TTrueLiteral -> "true"
+        TIntLiteral i -> "int " ++ (show i)
+        TDoubleLiteral d -> "double " ++ (show d)
+        TBooleanLiteral b -> "boolean " ++ (show b)
+        TStringLiteral s -> "string " ++ (show s) 
+        TIdent ident -> "identyfikator " ++ (show ident) 
+        TLeftParen -> "("
+        TRightParen ->  ")"
+        TLeftBrace -> "{"
+        TRightBrace -> "}"
+        TComma -> ","
+        TSemicolon -> ";"
+        TAssignSign -> "="
+        TIncrement -> "++"
+        TDecrement -> "--"
+        TOr -> "||"
+        TAnd -> "&&"
+        TEqualsSign -> "=="
+        TNotEqualsSign -> "!="
+        TLessSign -> "<"
+        TGreaterSign -> ">"
+        TLeOrEqSign -> "<="
+        TGrOrEqSign -> ">="
+        TPlusSign -> "+"
+        TMinusSign -> "-"
+        TDivSign -> "/"
+        TModSign -> "%"
+        TMultiSign -> "*"
+        TNot -> "!"
+        TIf -> "if"
+        TElse -> "else"
+        TWhile -> "while"
+        TFor -> "for"
+        TReturn -> "return"
+        TError e -> "error " ++ (show e)
+        TEOF ->  "eof"
+
+parseError :: [PosToken] -> a
+parseError ((Pos (pos_l, pos_k) token):_) = do
+	let tokenStr = tokenString token
+	error $ "Blad parsowania w linii " ++ (show pos_l) ++
+			" w kolumnie " ++ (show pos_k) ++ 
+			" nieoczekiwany symbol: " ++ tokenStr
 {-# LINE 1 "templates\GenericTemplate.hs" #-}
 {-# LINE 1 "templates\\GenericTemplate.hs" #-}
 {-# LINE 1 "<built-in>" #-}
