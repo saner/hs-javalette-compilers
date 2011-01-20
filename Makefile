@@ -8,5 +8,5 @@ lexer:
 	alex JavaletteLexer.x
 
 clean:
-	-rm -f *.hi *.o *.*~
+	-rm -f *.hi *.o *~
 

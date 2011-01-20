@@ -8,6 +8,9 @@ import System.IO
 import System.IO.Unsafe
 import Control.Parallel.Strategies (rnf)
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as BSC8
+
 import JavaletteLexer
 import JavaletteParser
 
@@ -387,8 +390,9 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 	let argsTypesCode = foldl (\s t -> s ++ t) "" (map (\arg -> jvmMethodShortType arg) defArgs)
 	let returnTypeCode = jvmMethodShortType returnTyp
 
-	let limitLocalsCode = "    .limit locals 100"
-	let limitStackCode = "    .limit stack 100"
+	(_, varCount, _, _) <- get
+	let limitLocalsCode = "    .limit locals " ++ (show varCount)
+	let limitStackCode = "    .limit stack " ++ (show (calcStackSize bodyStmtsCode))
 
 	let methodHeaderCode = ".method public static " ++ ident ++ 
 							"(" ++ argsTypesCode ++ ")" ++ returnTypeCode
@@ -419,6 +423,29 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 			stmtsCode <- compileBody stmts
 			return $ stmtCode ++ "\n\n" ++ stmtsCode
 	
+calcStackSize :: Code -> Int
+calcStackSize code =
+	let codeBS = BSC8.pack code
+	{-
+	    ldcCount = length (BS.findSubstrings (BSC8.pack "ldc") codeBS)
+	    ldc2_wCount = length (BS.findSubstrings (BSC8.pack "ldc2_w") codeBS)
+	    iloadCount = length (BS.findSubstrings (BSC8.pack "iload") codeBS)
+	    dloadCount = length (BS.findSubstrings (BSC8.pack "dload") codeBS) * 2
+	    aloadCount = length (BS.findSubstrings (BSC8.pack "aload") codeBS)
+		-}
+	    ldcCount = countOccur (BSC8.pack "ldc ") codeBS
+	    ldc2_wCount = countOccur (BSC8.pack "ldc2_w ") codeBS
+	    iloadCount = countOccur (BSC8.pack "iload ") codeBS
+	    dloadCount = (countOccur (BSC8.pack "dload ") codeBS) * 2
+	    aloadCount = countOccur (BSC8.pack "aload ") codeBS
+		
+	in ldcCount + ldc2_wCount + iloadCount + dloadCount + aloadCount
+
+countOccur :: BSC8.ByteString -> BSC8.ByteString -> Int
+countOccur p s = 
+	let (b,foc) = BS.breakSubstring p s
+	in if BSC8.null foc then 0
+				   else 1 + (countOccur p (BSC8.drop (BSC8.length p) foc))
 
 -- Stmt
 

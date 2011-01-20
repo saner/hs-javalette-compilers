@@ -31,23 +31,57 @@
 .end method
 
 .method public static readInt()I
-.limit stack 2
+.limit stack 6
 
-  invokestatic  JavaletteStdLib/readInt()I
+  ;invokestatic  JavaletteStdLib/readInt()I
+  ;ireturn
+
+  new java/io/BufferedReader
+  dup
+  new java/io/InputStreamReader
+  dup
+  getstatic	java/lang/System.in Ljava/io/InputStream;
+  invokespecial	java/io/InputStreamReader/<init>(Ljava/io/InputStream;)V
+  invokespecial	java/io/BufferedReader/<init>(Ljava/io/Reader;)V
+  invokevirtual	java/io/BufferedReader/readLine()Ljava/lang/String;
+
+  invokestatic java/lang/Integer/parseInt(Ljava/lang/String;)I
   ireturn
+
 .end method
 
 .method public static readDouble()D
-.limit stack 3
+.limit stack 5
 
-  invokestatic  JavaletteStdLib/readDouble()D
+  ;invokestatic  JavaletteStdLib/readDouble()D
+  ;dreturn
+
+  new java/io/BufferedReader
+  dup
+  new java/io/InputStreamReader
+  dup
+  getstatic java/lang/System.in Ljava/io/InputStream;
+  invokespecial java/io/InputStreamReader/<init>(Ljava/io/InputStream;)V
+  invokespecial java/io/BufferedReader/<init>(Ljava/io/Reader;)V
+  invokevirtual	java/io/BufferedReader/readLine()Ljava/lang/String;
+  invokestatic java/lang/Double/parseDouble(Ljava/lang/String;)D
   dreturn
+
 .end method
 
 
 .method public static error()V
-.limit stack 3
+.limit stack 2
+  
+  ;invokestatic  JavaletteStdLib/error()V
+  ;return
 
-  invokestatic  JavaletteStdLib/error()V
+  getstatic  java/lang/System/out Ljava/io/PrintStream;
+  ldc "runtime error"
+  invokevirtual  java/io/PrintStream/println(Ljava/lang/String;)V
+
+  iconst_1
+  invokestatic java/lang/System/exit(I)V
+
   return
 .end method
