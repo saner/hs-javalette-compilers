@@ -58,6 +58,10 @@ data JvmCode = JvmStore Int Type
 			 | JvmIf Bool Type String
 			 | JvmComp JvmComp Type String
 			 | JvmCall String Type [Type]
+			 | JvmCastBooleanToInt
+			 | JvmCastIntToBoolean
+			 | JvmCastDoubleToInt
+			 | JvmCastIntToDouble
 			 | JvmComment String
 			 | JvmNewLine
 			 deriving (Show, Eq)
@@ -413,6 +417,19 @@ jvmCodeToJvmString (JvmCall funName retType argsTypes) =
 
 
 
+jvmCodeToJvmString (JvmCastBooleanToInt) =
+	""
+
+jvmCodeToJvmString (JvmCastIntToBoolean) =
+	""
+
+jvmCodeToJvmString (JvmCastDoubleToInt) =
+	"d2i"
+
+jvmCodeToJvmString (JvmCastIntToDouble) =
+	"i2d"
+
+
 jvmCodeToJvmString (JvmComment comment) =
 	"; *** comment: " ++ comment
 
@@ -515,6 +532,10 @@ codeSize code =
 		 JvmComp cmp typ label -> - 2 * (typeSize typ) + (typeSize TypeInt)
 		 JvmCall funName retType argsType ->
 					- (sum (map (typeSize) argsType)) + (typeSize retType)
+		 JvmCastBooleanToInt -> 0
+		 JvmCastIntToBoolean -> 0
+		 JvmCastDoubleToInt -> -1
+		 JvmCastIntToDouble -> 1
 		 JvmComment str -> 0
 		 JvmNewLine -> 0
 	
@@ -915,6 +936,31 @@ compileExp (Pos pos (ExpExp posExp)) = do
 	(expTyp, expCode) <- compileExp posExp
 	return (expTyp, expCode)
 
+compileExp (Pos pos (ExpCast castType posExp)) = do
+	(expType, expCode) <- compileExp posExp
+
+	case (expType, castType) of
+		(TypeInt, ToInt) -> return (TypeInt, 
+									expCode)
+		(TypeInt, ToDouble) -> return (TypeDouble, 
+										expCode ++
+										[JvmCastIntToDouble])
+		(TypeInt, ToBoolean) -> return (TypeBoolean,
+										expCode ++
+										[JvmCastIntToBoolean])
+		(TypeBoolean, ToInt) -> return (TypeInt, 
+										expCode ++
+										[JvmCastBooleanToInt])
+		(TypeBoolean, ToBoolean) -> return (TypeBoolean, 
+											expCode
+											)
+		(TypeDouble, ToInt) -> return (TypeInt, 
+										expCode ++
+										[JvmCastDoubleToInt])
+		(TypeDouble, ToDouble) -> return (TypeDouble, 
+											expCode
+											)
+				
 compileExp (Pos pos (ExpInt i)) = do
 	return (TypeInt, [JvmConstInt i])
 

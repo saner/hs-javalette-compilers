@@ -31,14 +31,6 @@ type Context a = State (SymbolTables, Messages) a
 
 -- funkcje dodatkowe
 
-inList :: Eq a => a -> [a] -> Bool
-inList e (el:els) =
-	if e == el
-		then True
-		else
-			inList e els
-inList e [] = False
-
 binOpName :: BinaryOp -> String
 binOpName binOp =
 	case binOp of
@@ -62,7 +54,6 @@ unOpName unOp =
 		UnaryNot -> "!"
 		UnaryPlus -> "+"
 		UnaryMinus -> "-"
-	
 
 -- funkcje pomocnicze
 addMessage :: Message -> Context () 
@@ -371,9 +362,12 @@ checkStmt (Pos pos (StmtReturn maybePosExp)) = do
 						VarSymbol ident varTyp -> 
 							if varTyp == expTyp
 								then return ()
-								else do
-									addMessage (Error "Zly typ zwracanej wartosci" pos)
-									return ()
+								else 
+									if expTyp == TypeAny 
+										then return ()
+										else do 
+												addMessage (Error "Zly typ zwracanej wartosci" pos) 
+												return ()
 
 checkStmt (Pos pos (StmtExp posExp)) = do
 	checkExp posExp
@@ -459,13 +453,13 @@ checkExp (Pos pos (ExpBinaryOp binOp posExp1 posExp2)) = do
 	typ2 <- checkExp posExp2
 	let (Pos pos1 _) = posExp1
 
-	if inList binOp [BoolAnd, BoolOr]
+	if elem binOp [BoolAnd, BoolOr]
 		then if (compatibleBoolTypes typ1) && (compatibleBoolTypes typ2)
 				then return TypeBoolean
 				else do
 					addMessage (Error ((show binOp) ++ " mozna wykonac tylko na typie Boolean") pos1)
 					return TypeBoolean
-		else if inList binOp [ComperEq, ComperNotEq, RelaLe, RelaLeEq, RelaGt, RelaGtEq]
+		else if elem binOp [ComperEq, ComperNotEq, RelaLe, RelaLeEq, RelaGt, RelaGtEq]
 				then if compatibleCompTypes typ1 typ2
 						then return TypeBoolean
 						else do
@@ -539,6 +533,25 @@ checkExp (Pos pos (ExpVar (Pos _ ident))) = do
 						addMessage (Error ("Nie ma zmiennej o nazwie " ++ ident ++ ", ale istnieje taka funkcja") pos)
 						return TypeAny
 				VarSymbol ident typ -> return typ
+		
+
+checkExp (Pos pos (ExpCast castType posExp)) = do
+	expType <- checkExp posExp
+
+	case (expType, castType) of
+		(TypeInt, ToInt) -> return TypeInt
+		(TypeInt, ToDouble) -> return TypeDouble
+		(TypeInt, ToBoolean) -> return TypeBoolean
+		(TypeBoolean, ToInt) -> return TypeInt
+		(TypeBoolean, ToBoolean) -> return TypeBoolean
+		(TypeDouble, ToInt) -> return TypeInt
+		(TypeDouble, ToDouble) -> return TypeDouble
+		(TypeAny, _) -> return TypeAny
+		_ -> do 
+				addMessage (Error ("Nie mozna dokonac konwersji z '" ++ (show expType) ++ "' do '" ++ (show castType) ++ "'") pos)
+				return TypeAny
+				
+
 
 checkExp (Pos pos (ExpExp posExp)) =
 	checkExp posExp

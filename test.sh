@@ -4,7 +4,7 @@ i=1
 for f in examples/good/core*.jl; do
     out=${f%.*}
     echo "Test ${i}"
-    cat $f | JVMCompilerTest.exe > ProgTest.j 
+    cat $f | ./JVMCompilerTest > ProgTest.j 
     java -jar jasmin.jar ProgTest.j 
     if [[ -e ${out}.input ]]; then
         java ProgTest > out < ${out}.input

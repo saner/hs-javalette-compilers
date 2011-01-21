@@ -12,6 +12,8 @@ int main() {
   printInt((int)6.7);
   prD((double)126234);
   prD(453.61233254);
+
+  return 0;
 }
 
 void prD (double d) {
@@ -26,6 +28,8 @@ void prD (double d) {
     d = d - floor(d);
     j++;
   }
+
+  return;
 }
 
 double floor(double d) {

@@ -123,6 +123,9 @@ ExpList : Exp { [ $1 ] }
 ExpSimp : Ident { Pos (getPos $1) $ ExpVar (unIdent $1) }
 		| Literal { $1 }
 		| "(" Exp ")" { Pos (getPos $1) $ ExpExp $2 }
+		| "(" "boolean" ")" ExpSimp { Pos (getPos $1) $ ExpCast ToBoolean $4 }
+		| "(" "int" ")" ExpSimp { Pos (getPos $1) $ ExpCast ToInt $4 }
+		| "(" "double" ")" ExpSimp { Pos (getPos $1) $ ExpCast ToDouble $4 }
 Literal : IntLiteral { Pos (getPos $1) $ ExpInt (unInt $1) }
 		| DoubleLiteral { Pos (getPos $1) $ ExpDouble (unDouble $1) }
 		| StringLiteral { Pos (getPos $1) $ ExpString (unString $1) }
@@ -210,6 +213,9 @@ data BinaryOp = BoolAnd | BoolOr
 data UnaryOp = UnaryNot | UnaryPlus | UnaryMinus
 				deriving (Show, Eq)
 
+data CastType = ToInt | ToDouble | ToBoolean
+				deriving (Show, Eq)
+
 data Exp = ExpList [PosExp]
 		| ExpBinaryOp BinaryOp PosExp PosExp
 		| ExpUnaryOp UnaryOp PosExp
@@ -221,6 +227,7 @@ data Exp = ExpList [PosExp]
 		| ExpString String
 		| ExpTrue
 		| ExpFalse
+		| ExpCast CastType PosExp -- do castowania, zawiera typ konwersji oraz wyrazenie podlegajace jej
 		deriving (Show, Eq)
 type PosExp = Pos Exp
 
