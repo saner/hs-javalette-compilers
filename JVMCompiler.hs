@@ -454,7 +454,7 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 
 	(_, varCount, _, _) <- get
 	let limitLocalsCode = "    .limit locals " ++ (show varCount)
-	let limitStackCode = "    .limit stack " ++ (show 100)
+	let limitStackCode = "    .limit stack " ++ (show (calcStackSize bodyStmtsCode))
 
 	let methodHeaderCode = ".method public static " ++ ident ++ 
 							"(" ++ argsTypesCode ++ ")" ++ returnTypeCode
@@ -485,24 +485,65 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 			stmtsCode <- compileBody stmts
 			return $ stmtCode ++
 					 stmtsCode
+
+typeSize :: Type -> Int
+typeSize typ =
+	case typ of
+		TypeInt -> 1
+		TypeBoolean -> 1
+		TypeString -> 1
+		TypeDouble -> 2
+		TypeVoid -> 0
 	
-calcStackSize :: String -> Int
-calcStackSize stringCode =
-	let codeBS = BSC8.pack stringCode
-	{-
-	    ldcCount = length (BS.findSubstrings (BSC8.pack "ldc") codeBS)
-	    ldc2_wCount = length (BS.findSubstrings (BSC8.pack "ldc2_w") codeBS)
-	    iloadCount = length (BS.findSubstrings (BSC8.pack "iload") codeBS)
-	    dloadCount = length (BS.findSubstrings (BSC8.pack "dload") codeBS) * 2
-	    aloadCount = length (BS.findSubstrings (BSC8.pack "aload") codeBS)
-		-}
-	    ldcCount = countOccur (BSC8.pack "ldc ") codeBS
-	    ldc2_wCount = countOccur (BSC8.pack "ldc2_w ") codeBS
-	    iloadCount = countOccur (BSC8.pack "iload ") codeBS
-	    dloadCount = (countOccur (BSC8.pack "dload ") codeBS) * 2
-	    aloadCount = countOccur (BSC8.pack "aload ") codeBS
-		
-	in ldcCount + ldc2_wCount + iloadCount + dloadCount + aloadCount
+
+codeSize :: JvmCode -> Int
+codeSize code = 
+	case code of
+		 JvmStore i typ -> - typeSize typ
+		 JvmLoad i typ -> typeSize typ
+		 JvmPop typ -> - typeSize typ
+		 JvmDup typ -> typeSize typ
+		 JvmGoto label -> 0
+		 JvmLabel label -> 0
+		 JvmConstInt i -> 1
+		 JvmConstDouble d -> 2
+		 JvmConstBoolean b -> 1
+		 JvmConstString str -> 1
+		 JvmReturn typ -> - typeSize typ
+		 JvmArithOp op typ -> - typeSize typ
+		 JvmIf b typ label -> - typeSize typ
+		 JvmComp cmp typ label -> - 2 * (typeSize typ) + (typeSize TypeInt)
+		 JvmCall funName retType argsType ->
+					- (sum (map (typeSize) argsType)) + (typeSize retType)
+		 JvmComment str -> 0
+		 JvmNewLine -> 0
+	
+calcStackSize :: Code -> Int
+calcStackSize sourceCode =
+	let labels = getLabels sourceCode 0
+
+	in calc sourceCode 0 [] labels
+		where
+			getLabels [] line = Map.empty
+			getLabels (code:codes) line =
+				case code of
+					JvmLabel label -> Map.insert label line (getLabels codes (line+1))
+					_ -> getLabels codes (line+1)	
+			
+			calc :: Code -> Int -> [String] -> (Map.Map String Int) -> Int
+			calc [] stackMax visited labels = 0
+			calc (code:codes) currStack visited labels =
+				case code of
+					JvmGoto label -> if elem label visited 
+										then max currStack (calc codes currStack visited labels)
+									    else
+											case Map.lookup label labels of
+												Nothing -> max currStack (calc codes currStack visited labels)
+												Just line -> maximum [currStack,
+																	  calc codes currStack (label:visited) labels,
+																	  calc (drop (line+1) sourceCode) currStack (label:visited) labels]
+					_ -> let newCurrStack = currStack + (codeSize code)
+						 in max currStack (calc codes newCurrStack visited labels)
 
 countOccur :: BSC8.ByteString -> BSC8.ByteString -> Int
 countOccur p s = 
