@@ -29,14 +29,40 @@ type FunctionDefTable = Map.Map Ident FunctionDef
 
 type Position = (Int, Int)
 
-type Code = String
 
 type ProgName = String
 
 type CompilerState = ( ProgName, Int, FunctionDefTable, [VarDefTable] )
 
-
 type Context a = State CompilerState a
+
+
+data JvmArithOp = Add | Sub | Mul | Div | Rem
+			 deriving (Show, Eq)
+
+data JvmComp = Lt | Le | Gt | Ge | Eq | Ne
+			 deriving (Show, Eq)
+
+data JvmCode = JvmStore Int Type
+			 | JvmLoad Int Type
+			 | JvmPop Type
+			 | JvmDup Type
+			 | JvmGoto String
+			 | JvmLabel String
+			 | JvmConstInt Int
+			 | JvmConstDouble Double
+			 | JvmConstBoolean Bool
+			 | JvmConstString String
+			 | JvmReturn Type
+			 | JvmArithOp JvmArithOp Type
+			 | JvmIf Bool Type String
+			 | JvmComp JvmComp Type String
+			 | JvmCall String Type [Type]
+			 | JvmComment String
+			 | JvmNewLine
+			 deriving (Show, Eq)
+
+type Code = [JvmCode]
 
 -- funkcje dodatkowe
 
@@ -105,7 +131,7 @@ popSymbolTable = do
 
 -- Program
 
-compileProgram :: ProgName -> Program -> Context (Code)
+compileProgram :: ProgName -> Program -> Context String
 compileProgram progName (Program funs) = do
 	-- dodanie do srodowiska informacji o funkcjach
 	addTreeBuiltInFunsDefs
@@ -121,13 +147,13 @@ compileProgram progName (Program funs) = do
 	let jvmMainMethodCode = jvmMainMethod progName
 	builtInFunsCode <- getBuiltInFunsCode
 
-	return $ programClassInfo ++ "\n\n\n" ++ 
-				initializerCode ++ "\n\n\n" ++ 
-				jvmMainMethodCode ++ "\n\n\n" ++ 
-				funsCode ++ "\n\n\n" ++ 
-				builtInFunsCode
+	return $ programClassInfo ++ "\n\n" ++
+			 initializerCode ++ "\n\n" ++
+			 jvmMainMethodCode ++ "\n\n" ++
+			 funsCode ++ "\n\n" ++
+			 builtInFunsCode
 
-getProgramIninializerCode :: Code
+getProgramIninializerCode :: String
 getProgramIninializerCode =
 	".method public <init>()V \n\
 	 \   aload_0 \n\
@@ -135,7 +161,7 @@ getProgramIninializerCode =
 	 \   return \n\
 	 \.end method \n"
 
-jvmMainMethod :: ProgName -> Code
+jvmMainMethod :: ProgName -> String
 jvmMainMethod progName =
 	".method public static main([Ljava/lang/String;)V" ++ "\n\n" ++
 	 "   invokestatic " ++ progName ++ "/main()I" ++ "\n\n" ++
@@ -156,7 +182,7 @@ getFileContent fileName = do
 	--hClose file
 	return content
 
-getBuiltInFunsCode :: Context Code
+getBuiltInFunsCode :: Context String
 getBuiltInFunsCode = do
 	--return "; built in functions"
 	return $ unsafePerformIO (getFileContent "JavaletteStdLibBackend.j")
@@ -191,19 +217,32 @@ addTreeFunctionDef (Function (Pos _ ident) (Pos pos typ) args stms) = do
 	addFunctionDef $ FunctionDef ident typ argsTypes
 
 
-compileFunctions :: [PosFunction] -> Context (Code)
+compileFunctions :: [PosFunction] -> Context String
 compileFunctions posFuns = do
 	funsCode <- compile posFuns
-	return (funsCode)
+	return funsCode
 	where
-		compile (fun:[]) =
-			compileFunction fun
+		compile (fun:[]) = compileFunction fun
 		compile (fun:funs) = do
 			funCode <- compileFunction fun
 			funsCode <- compile funs
 			return $ funCode ++ funsCode
 
 -- funkcje pomocnicze do JVM
+
+codeJvmStore :: Ident -> Context (Type, [JvmCode])
+codeJvmStore ident = do
+	foundVar <- findVarDef ident
+	case foundVar of
+			Just (VarDef ident typ nr) -> return $ (typ, [JvmStore nr typ])
+			Nothing -> return $ (TypeInt, [JvmComment ("; *** error: Nie ma zmiennej " ++ ident)])
+
+codeJvmLoad :: Ident -> Context (Type, [JvmCode])
+codeJvmLoad ident = do
+	foundVar <- findVarDef ident
+	case foundVar of
+			Just (VarDef ident typ nr) -> return $ (typ, [JvmLoad nr typ])
+			Nothing -> return $ (TypeInt, [JvmComment ("; *** error: Nie ma zmiennej " ++ ident)])
 
 jvmMethodShortType :: Type -> String
 jvmMethodShortType typ =
@@ -222,148 +261,168 @@ jvmReturnType typ =
 		TypeDouble -> "dreturn"
 		TypeInt -> "ireturn"
 
-jvmStore :: Ident -> Context String
-jvmStore ident = do
-	foundVar <- findVarDef ident
-	case foundVar of
-		Just (VarDef ident typ nr) ->
-			case typ of
-				TypeBoolean -> return $ "istore " ++ (show nr) -- Boolean na byteach
-				TypeVoid -> return $ "; blad"
-				TypeDouble -> return $ "dstore " ++ (show nr)
-				TypeInt -> return $ "istore " ++ (show nr)
-		Nothing ->
-			return $ "; nie ma zmiennej o nazwie do wczytania " ++ ident
+-- translacja kodu JvmCode do kodu wlasciowego JVM
 
-jvmLoad :: Ident -> Context String
-jvmLoad ident = do
-	foundVar <- findVarDef ident
-	case foundVar of
-		Just (VarDef ident typ nr) ->
-			case typ of
-				TypeBoolean -> return $ "iload " ++ (show nr)-- Boolean na byteach
-				TypeVoid -> return $ "; blad"
-				TypeDouble -> return $ "dload " ++ (show nr)
-				TypeInt -> return $ "iload " ++ (show nr)
-		Nothing ->
-			return $ "; nie ma zmiennej o nazwie " ++ ident
+jvmCodeToJvmString :: JvmCode -> String
 
-jvmConst :: Exp -> String
-jvmConst exp =
-	case exp of
-		(ExpInt i) -> "ldc " ++ (show i)
-		(ExpDouble d) -> "ldc2_w " ++ (show d)
-		(ExpString s) -> "ldc " ++ (show s)
-		ExpTrue -> "ldc " ++ (show 1)
-		ExpFalse -> "ldc " ++ (show 0)
+jvmCodeToJvmString (JvmStore nr typ) = do
+	case typ of
+		TypeBoolean -> "istore " ++ (show nr)
+		TypeVoid -> "; blad"
+		TypeDouble -> "dstore " ++ (show nr)
+		TypeInt -> "istore " ++ (show nr)
 
-jvmAdd :: Type -> String
-jvmAdd typ =
+jvmCodeToJvmString (JvmLoad nr typ) = do
+	case typ of
+		TypeBoolean -> "iload " ++ (show nr)
+		TypeVoid -> "; blad"
+		TypeDouble -> "dload " ++ (show nr)
+		TypeInt -> "iload " ++ (show nr)
+
+jvmCodeToJvmString (JvmPop typ) = do
+	case typ of
+		TypeBoolean -> "pop"
+		TypeVoid -> "; blad"
+		TypeDouble -> "pop2"
+		TypeInt -> "pop"
+
+jvmCodeToJvmString (JvmDup typ) = do
+	case typ of
+		TypeBoolean -> "dup"
+		TypeVoid -> "; blad"
+		TypeDouble -> "dup2"
+		TypeInt -> "dup"
+
+jvmCodeToJvmString (JvmGoto label) = do
+	"goto " ++ label
+
+
+jvmCodeToJvmString (JvmLabel label) = do
+	label ++ ":"
+
+
+jvmCodeToJvmString (JvmConstInt i) =
+	"ldc " ++ (show i)
+
+jvmCodeToJvmString (JvmConstDouble d) =
+	"ldc2_w " ++ (show d)
+
+jvmCodeToJvmString (JvmConstBoolean b) =
+	case b of
+		True -> "ldc " ++ (show 1)
+		False -> "ldc " ++ (show 0)
+
+jvmCodeToJvmString (JvmConstString s) =
+	"ldc " ++ (show s)
+
+jvmCodeToJvmString (JvmReturn typ) =
+	case typ of
+		TypeBoolean -> "ireturn"
+		TypeVoid -> "return"
+		TypeDouble -> "dreturn"
+		TypeInt -> "ireturn"
+
+jvmCodeToJvmString (JvmArithOp Add typ) =
 	case typ of
 		TypeBoolean -> "iadd"
 		TypeVoid -> "; blad"
 		TypeDouble -> "dadd"
 		TypeInt -> "iadd"
 
-jvmSub :: Type -> String
-jvmSub typ =
+jvmCodeToJvmString (JvmArithOp Sub typ) =
 	case typ of
 		TypeBoolean -> "isub"
 		TypeVoid -> "; blad"
 		TypeDouble -> "dsub"
 		TypeInt -> "isub"
 
-jvmMul :: Type -> String
-jvmMul typ =
+jvmCodeToJvmString (JvmArithOp Mul typ) =
 	case typ of
 		TypeBoolean -> "imul"
 		TypeVoid -> "; blad"
 		TypeDouble -> "dmul"
 		TypeInt -> "imul"
 
-jvmDiv :: Type -> String
-jvmDiv typ =
+jvmCodeToJvmString (JvmArithOp Div typ) =
 	case typ of
 		TypeBoolean -> "idiv"
 		TypeVoid -> "; blad"
 		TypeDouble -> "ddiv"
 		TypeInt -> "idiv"
 
-jvmRem :: Type -> String
-jvmRem typ =
+jvmCodeToJvmString (JvmArithOp Rem typ) =
 	case typ of
 		TypeBoolean -> "irem"
 		TypeVoid -> "; blad"
 		TypeDouble -> "drem"
 		TypeInt -> "irem"
 
-jvmTrue :: String
-jvmTrue = jvmConst ExpTrue
 
-jvmFalse :: String
-jvmFalse = jvmConst ExpFalse
 
-jvmNeg :: String
-jvmNeg = "ineg"
+jvmCodeToJvmString (JvmIf eq typ label) =
+	case eq of
+		True -> "ifne " ++ label
+		False -> "ifeq " ++ label
 
-jvmGoto :: String
-jvmGoto = "goto"
 
-jvmIfEqFalse :: String
-jvmIfEqFalse = "ifeq"
-
-jvmIfEqTrue :: String
-jvmIfEqTrue = "ifne"
-
-jvmIfCmpEq :: Type -> String
-jvmIfCmpEq typ = 
+jvmCodeToJvmString (JvmComp Eq typ label) =
 	case typ of
-		TypeBoolean -> "if_icmpeq"
-		TypeInt -> "if_icmpeq"
-		TypeDouble -> "dcmpg ; obsluga double bardziej skomplikowane \nifeq"
+		TypeBoolean -> "if_icmpeq " ++ label
+		TypeInt -> "if_icmpeq " ++ label
+		TypeDouble -> "dcmpg ; double \nifeq " ++ label
 
-jvmIfCmpNe :: Type -> String
-jvmIfCmpNe typ =
+jvmCodeToJvmString (JvmComp Ne typ label) =
 	case typ of
-		TypeBoolean -> "if_icmpne"
-		TypeInt -> "if_icmpne"
-		TypeDouble -> "dcmpg ; obsluga double bardziej skomplikowane \nifne"
+		TypeBoolean -> "if_icmpne " ++ label
+		TypeInt -> "if_icmpne " ++ label
+		TypeDouble -> "dcmpg ; double \nifne " ++ label
 
-jvmIfCmpGe :: Type -> String
-jvmIfCmpGe typ =
+jvmCodeToJvmString (JvmComp Ge typ label) =
 	case typ of
-		TypeInt -> "if_icmpge"
+		TypeInt -> "if_icmpge " ++ label
+		TypeDouble -> "dcmpg ; double \n" ++
+					  "ldc 0 \n" ++
+					  "if_icmpge " ++ label
+
+jvmCodeToJvmString (JvmComp Gt typ label) =
+	case typ of
+		TypeInt -> "if_icmpgt " ++ label
+		TypeDouble -> "dcmpg ; double \n" ++
+					  "ldc 0 \n" ++
+					  "if_icmpgt " ++ label
+
+jvmCodeToJvmString (JvmComp Le typ label) =
+	case typ of
+		TypeInt -> "if_icmple " ++ label
 		TypeDouble -> "dcmpg ; obsluga double bardziej skomplikowane \n" ++
 					  "ldc 0 \n" ++
-					  "if_icmpge"
+					  "if_icmple " ++ label
 
-jvmIfCmpGt :: Type -> String
-jvmIfCmpGt typ =
+jvmCodeToJvmString (JvmComp Lt typ label) =
 	case typ of
-		TypeInt -> "if_icmpgt"
+		TypeInt -> "if_icmplt " ++ label
 		TypeDouble -> "dcmpg ; obsluga double bardziej skomplikowane \n" ++
 					  "ldc 0 \n" ++
-					  "if_icmpgt"
+					  "if_icmplt " ++ label
 
-jvmIfCmpLe :: Type -> String
-jvmIfCmpLe typ =
-	case typ of
-		TypeInt -> "if_icmple"
-		TypeDouble -> "dcmpg ; obsluga double bardziej skomplikowane \n" ++
-					  "ldc 0 \n" ++
-					  "if_icmple"
+jvmCodeToJvmString (JvmCall funName retType argsTypes) =
+	let argsTypesCode = foldl (\s t -> s ++ t) "" (map (\arg -> jvmMethodShortType arg) argsTypes)
+	    retTypeCode = jvmMethodShortType retType
 
-jvmIfCmpLt :: Type -> String
-jvmIfCmpLt typ =
-	case typ of
-		TypeInt -> "if_icmplt"
-		TypeDouble -> "dcmpg ; obsluga double bardziej skomplikowane \n" ++
-					  "ldc 0 \n" ++
-					  "if_icmplt"
+	in "invokestatic " ++ funName ++ "(" ++ argsTypesCode ++ ")" ++ retTypeCode
+
+
+
+jvmCodeToJvmString (JvmComment comment) =
+	"; *** comment: " ++ comment
+
+jvmCodeToJvmString (JvmNewLine) =
+	"\n"
+
 
 -- Function
 
-compileFunction :: PosFunction -> Context Code
+compileFunction :: PosFunction -> Context String
 
 compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) = do
 	pushEmptySymbolTable
@@ -382,6 +441,9 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 
 	-- kompilacja ciala funkcji
 	bodyStmtsCode <- compileBody stms
+
+	let bodyStmtsCodeString = foldl (\s t -> s ++ "\n" ++ t) "" 
+								(map (\code -> jvmCodeToJvmString code) bodyStmtsCode)
 	
 	popSymbolTable
 
@@ -392,7 +454,7 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 
 	(_, varCount, _, _) <- get
 	let limitLocalsCode = "    .limit locals " ++ (show varCount)
-	let limitStackCode = "    .limit stack " ++ (show (calcStackSize bodyStmtsCode))
+	let limitStackCode = "    .limit stack " ++ (show 100)
 
 	let methodHeaderCode = ".method public static " ++ ident ++ 
 							"(" ++ argsTypesCode ++ ")" ++ returnTypeCode
@@ -403,7 +465,7 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 	return $ methodHeaderCode ++ "\n\n" ++ 
 			 limitLocalsCode ++ "\n" ++ 
 			 limitStackCode ++ "\n\n" ++
-			 bodyStmtsCode ++ "\n\n" ++ 
+			 bodyStmtsCodeString ++ "\n\n" ++ 
 			 methodFooterCode
 						
 
@@ -417,15 +479,16 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 			return ()
 
 		compileBody :: [PosStmt] -> Context Code
-		compileBody [] = return ""
+		compileBody [] = return []
 		compileBody (stmt:stmts) = do
 			stmtCode <- compileStmt stmt
 			stmtsCode <- compileBody stmts
-			return $ stmtCode ++ "\n\n" ++ stmtsCode
+			return $ stmtCode ++
+					 stmtsCode
 	
-calcStackSize :: Code -> Int
-calcStackSize code =
-	let codeBS = BSC8.pack code
+calcStackSize :: String -> Int
+calcStackSize stringCode =
+	let codeBS = BSC8.pack stringCode
 	{-
 	    ldcCount = length (BS.findSubstrings (BSC8.pack "ldc") codeBS)
 	    ldc2_wCount = length (BS.findSubstrings (BSC8.pack "ldc2_w") codeBS)
@@ -462,11 +525,12 @@ compileStmt (Pos pos (StmtList posStms)) = do
 	return stmsCode
 
 	where
-		compile [] = return ""
+		compile [] = return []
 		compile (stm:stms) = do
 			stmCode <- compileStmt stm
 			stmsCode <- compile stms
-			return $ stmCode ++ "\n\n" ++ stmsCode
+			return $ stmCode ++ 
+					 stmsCode
 
 
 compileStmt (Pos pos (StmtVarsDecl (Pos _ typ) posDecls)) = do
@@ -477,8 +541,9 @@ compileStmt (Pos pos (StmtVarsDecl (Pos _ typ) posDecls)) = do
 		addVar (decl:pDecls) = do
 			declCode <- compileDecl typ decl
 			declsCode <- addVar pDecls
-			return $ declCode ++ "\n\n" ++ declsCode
-		addVar [] = return ""
+			return $ declCode ++ 
+					 declsCode
+		addVar [] = return []
 
 
 compileStmt (Pos pos (StmtAssig posAssig)) = do
@@ -503,10 +568,10 @@ compileStmt (Pos (pos_l,pos_k) (StmtIf posExp posStThen posStElse)) = do
 
 			popSymbolTable
 
-			return $ expCode ++ "\n" ++
-					 "ifeq " ++ "IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-					 thenCode ++ "\n" ++
-					 "IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n"
+			return $ expCode ++
+					 [JvmIf False expTyp ("IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+					 thenCode ++
+					 [JvmLabel ("IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 		else do
 			pushEmptySymbolTable
 
@@ -514,13 +579,13 @@ compileStmt (Pos (pos_l,pos_k) (StmtIf posExp posStThen posStElse)) = do
 
 			popSymbolTable
 
-			return $ expCode ++ "\n" ++
-					 "ifeq " ++ "IFELSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-					 thenCode ++ "\n" ++
-					 "goto " ++ "IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-					 "IFELSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-					 elseCode ++ "\n" ++
-					 "IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+			return $ expCode ++ 
+					 [JvmIf False expTyp ("IFELSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+					 thenCode ++
+					 [JvmGoto ("IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+					 [JvmLabel ("IFELSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+					 elseCode ++
+					 [JvmLabel ("IFEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 					 
 					 
 
@@ -534,16 +599,14 @@ compileStmt (Pos (pos_l,pos_k) (StmtWhile posExp posStmt)) = do
 
 	popSymbolTable
 
-	return $ "WHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-			 expCode ++ "\n" ++
-			 "ifeq " ++ "ENDWHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-			 whileCode ++ "\n" ++
-			 "goto " ++ "WHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-			 "ENDWHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n"
+	return $ [JvmLabel ("WHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+			 expCode ++
+			 [JvmIf False expTyp ("ENDWHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+			 whileCode ++
+			 [JvmGoto ("WHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+			 [JvmLabel ("ENDWHILE_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 
 
-			 
-			 
 
 compileStmt (Pos (pos_l,pos_k) (StmtFor posAssig1 posExp posAssig2 posStmt)) = do
 	assig1Code <- compileAssig posAssig1
@@ -554,30 +617,30 @@ compileStmt (Pos (pos_l,pos_k) (StmtFor posAssig1 posExp posAssig2 posStmt)) = d
 	forCode <- compileStmt posStmt
 	popSymbolTable
 
-	return $ assig1Code ++ "\n" ++
-			 "FOR_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-			 expCode ++ "\n" ++
-			 "ifeq " ++ "ENDFOR_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-			 forCode ++ "\n" ++
-			 assig2Code ++ "\n" ++
-			 "goto " ++ "FOR_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-			 "ENDFOR_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n"
+	return $ assig1Code ++
+			 [JvmLabel ("FOR_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+			 expCode ++
+			 [JvmIf False expTyp ("ENDFOR_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+			 forCode ++
+			 assig2Code ++
+			 [JvmGoto ("FOR_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+			 [JvmLabel ("ENDFOR_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 
 compileStmt (Pos pos (StmtReturn maybePosExp)) = do
 	case maybePosExp of
 		Nothing ->
-			return $ jvmReturnType TypeVoid
+			return $ [JvmReturn TypeVoid]
 		Just posExp -> do
-			(typ, expCode) <- compileExp posExp
-			return $ expCode ++ "\n" ++
-					 jvmReturnType typ
+			(typCode, expCode) <- compileExp posExp
+			return $ expCode ++
+					 [JvmReturn typCode]
 
 compileStmt (Pos pos (StmtExp posExp)) = do
-	(typ, expCode) <- compileExp posExp
+	(typCode, expCode) <- compileExp posExp
 	return expCode
 
 compileStmt (Pos pos (StmtEmpty)) = do
-	return ""
+	return []
 
 
 -- Decl
@@ -586,21 +649,17 @@ compileDecl typ (Pos pos (Decl (Pos _ ident) maybeExp)) = do
 	case maybeExp of
 		Nothing -> do
 			addVarDef ident typ
-			{- -- problem jesli nie zainicjowana
-			let defCode = jvmConst (ExpInt 0)
-			storeCode <- jvmStore ident
-			foundVar <- findVarDef ident
-			return $ defCode ++ "\n" ++ storeCode
-			-}
-			return ""
+			return []
 
 		Just posExp -> do
 			(expTyp, expCode) <- compileExp posExp
+
 			addVarDef ident typ
-			storeCode <- jvmStore ident
-			return $ expCode ++ "\n" ++ storeCode
 
+			(storeTyp, storeCode) <- codeJvmStore ident
 
+			return $ expCode ++ 
+					 storeCode
 
 
 -- Assig
@@ -608,22 +667,27 @@ compileAssig :: PosAssig -> Context (Code)
 
 compileAssig (Pos pos (AssigEq (Pos posA ident) posExp)) = do
 	(expTyp, expCode) <- compileExp posExp
-	storeCode <- jvmStore ident
-	return $ expCode ++ "\n" ++ storeCode
+
+	(storeTyp, storeCode) <- codeJvmStore ident
+
+	return $ expCode ++ 
+			 storeCode
 						
 compileAssig (Pos pos (AssigInc (Pos _ ident))) = do
-	loadCode <- jvmLoad ident
-	let oneCode = jvmConst (ExpInt 1)
-	let addCode = jvmAdd TypeInt
-	storeCode <- jvmStore ident
-	return $ loadCode ++ "\n" ++ oneCode ++ "\n" ++ addCode ++ "\n" ++ storeCode
+	(loadTyp, loadCode) <- codeJvmLoad ident
+	(storeTyp, storeCode) <- codeJvmStore ident
+	return $ loadCode ++
+			 [JvmConstInt 1] ++
+			 [JvmArithOp Add TypeInt] ++
+			 storeCode
 
 compileAssig (Pos pos (AssigDec (Pos _ ident))) = do
-	let oneCode = jvmConst (ExpInt 1)
-	loadCode <- jvmLoad ident
-	let subCode = jvmSub TypeInt
-	storeCode <- jvmStore ident
-	return $ loadCode ++ "\n" ++ oneCode ++ "\n" ++ subCode ++ "\n" ++ storeCode
+	(loadTyp, loadCode) <- codeJvmLoad ident
+	(storeTyp, storeCode) <- codeJvmStore ident
+	return $ loadCode ++
+			 [JvmConstInt 1] ++
+			 [JvmArithOp Sub TypeInt] ++
+			 storeCode
 
 -- Exp
 compileExp :: PosExp -> Context (Type, Code)
@@ -631,14 +695,15 @@ compileExp :: PosExp -> Context (Type, Code)
 compileExp (Pos pos (ExpList exps)) = do
 	code <- compile exps
 
-	return (TypeAny, code)
+	return (TypeInt, code)
 
 		where
-			compile [] = return ""
+			compile [] = return []
 			compile (exp:exps) = do
 				(expTyp, expCode) <- compileExp exp
 				expsCode <- compile exps
-				return $ expCode ++ "\n" ++ expsCode
+				return $ expCode ++ 
+						 expsCode
 
 compileExp (Pos (pos_l,pos_k) (ExpBinaryOp binOp posExp1 posExp2)) = do
 	(exp1Typ, exp1Code) <- compileExp posExp1
@@ -646,111 +711,111 @@ compileExp (Pos (pos_l,pos_k) (ExpBinaryOp binOp posExp1 posExp2)) = do
 
 	case binOp of
 		BoolAnd -> return $ (TypeBoolean, 
-							exp1Code ++ "\n" ++
-							"ifeq " ++ "ANDFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							exp2Code ++ "\n" ++
-							"ifeq " ++ "ANDFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							jvmTrue ++ "\n" ++
-							"goto " ++ "ANDEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"ANDFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmFalse ++ "\n" ++
-							"ANDEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							[JvmIf False exp1Typ ("ANDFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							exp2Code ++
+							[JvmIf False exp2Typ ("ANDFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True]  ++
+							[JvmGoto ("ANDEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("ANDFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmLabel ("ANDEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		BoolOr -> return $ (TypeBoolean, 
-							exp1Code ++ "\n" ++
-							jvmIfEqTrue ++ " ORTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							exp2Code ++ "\n" ++
-							jvmIfEqTrue ++ " ORTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							jvmFalse ++ "\n" ++
-							"goto " ++ " OREND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"ORTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"OREND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							[JvmIf True exp1Typ ("ORTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							exp2Code ++
+							[JvmIf True exp2Typ ("ORTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("OREND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("ORTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[(JvmLabel ("OREND_" ++ (show pos_l) ++ "_" ++ (show pos_k)))]
 							)
 		ComperEq -> return $ (TypeBoolean, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmIfCmpEq exp1Typ) ++ " EQTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							jvmFalse ++ "\n" ++
-							"goto " ++ "EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"EQTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							exp2Code ++
+							[JvmComp Eq exp1Typ ("EQTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("EQTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmLabel ("EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		ComperNotEq -> return $ (TypeBoolean, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmIfCmpNe exp1Typ) ++ " EQFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							jvmFalse ++ "\n" ++
-							"goto " ++ "EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"EQFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							exp2Code ++
+							[JvmComp Ne exp1Typ ("EQFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("EQFALSE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmLabel ("EQEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		RelaLe -> return $ (TypeBoolean,
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmIfCmpLt exp1Typ) ++ " LTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							jvmFalse ++ "\n" ++
-							"goto " ++ "LTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"LTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"LTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							exp2Code ++
+							[JvmComp Lt exp1Typ (" LTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("LTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("LTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmLabel ("LTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		RelaLeEq -> return $ (TypeBoolean, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmIfCmpLe exp1Typ) ++ " LETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++ 
-							jvmFalse ++ "\n" ++
-							"goto " ++ "LEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"LETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"LEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							exp2Code ++
+							[JvmComp Le exp1Typ ("LETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("LEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("LETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmLabel ("LEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		RelaGt -> return $ (TypeBoolean,
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmIfCmpGt exp1Typ) ++ " GTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++ 
-							jvmFalse ++ "\n" ++
-							"goto " ++ "GTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"GTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"GTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							exp2Code ++
+							[JvmComp Gt exp1Typ ("GTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("GTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("GTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmLabel ("GTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		RelaGtEq -> return $ (TypeBoolean, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmIfCmpGe exp1Typ) ++ " GETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++ 
-							jvmFalse ++ "\n" ++
-							"goto " ++ "GEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"GETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmTrue ++ "\n" ++
-							"GEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							exp1Code ++
+							exp2Code ++
+							[JvmComp Ge exp1Typ ("GETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmGoto ("GEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("GETRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmLabel ("GEEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		AddiPlus -> return $ (exp1Typ, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmAdd exp1Typ)
+							exp1Code ++
+							exp2Code ++
+							[JvmArithOp Add exp1Typ]
 							)
 		AddiMinus -> return $ (exp1Typ, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmSub exp1Typ)
+							exp1Code ++
+							exp2Code ++
+							[JvmArithOp Sub exp1Typ]
 							)
 		MultiMulti -> return $ (exp1Typ, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmMul exp1Typ)
+							exp1Code ++
+							exp2Code ++
+							[JvmArithOp Mul exp1Typ]
 							)
 		MultiDiv -> return $ (exp1Typ, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmDiv exp1Typ)
+							exp1Code ++
+							exp2Code ++
+							[JvmArithOp Div exp1Typ]
 							)
 		MultiMod -> return $ (exp1Typ, 
-							exp1Code ++ "\n" ++
-							exp2Code ++ "\n" ++
-							(jvmRem exp1Typ)
+							exp1Code ++
+							exp2Code ++
+							[JvmArithOp Rem exp1Typ]
 							)
 
 compileExp (Pos (pos_l,pos_k) (ExpUnaryOp unOp posExp)) = do
@@ -758,31 +823,31 @@ compileExp (Pos (pos_l,pos_k) (ExpUnaryOp unOp posExp)) = do
 
 	case unOp of
 		UnaryNot -> return $ (TypeBoolean,
-							code ++ "\n" ++
-							jvmIfEqTrue ++ " NOTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++ 
-							jvmTrue ++ "\n" ++
-							"goto " ++ "NOTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ "\n" ++
-							"NOTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ": \n" ++
-							jvmFalse ++ "\n" ++
-							"NOTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k) ++ ":"
+							code ++
+							[JvmIf True typ ("NOTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean True] ++
+							[JvmGoto ("NOTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmLabel ("NOTTRUE_" ++ (show pos_l) ++ "_" ++ (show pos_k))] ++
+							[JvmConstBoolean False] ++
+							[JvmLabel ("NOTEND_" ++ (show pos_l) ++ "_" ++ (show pos_k))]
 							)
 		UnaryPlus -> return $ (typ,
-							code ++ "\n" ++
-							(jvmAdd typ)
+							code ++
+							[JvmArithOp Add typ]
 							)
 		UnaryMinus -> do
 						case typ of
 							TypeInt ->
 								return $ (typ,
-									code ++ "\n" ++
-									(jvmConst (ExpInt (-1))) ++ "\n" ++
-									(jvmMul typ)
+									code ++
+									[JvmConstInt (-1)] ++
+									[JvmArithOp Mul typ]
 									)
 							TypeDouble ->
 								return $ (typ,
-									code ++ "\n" ++
-									(jvmConst (ExpDouble (-1.0))) ++ "\n" ++
-									(jvmMul typ)
+									code ++
+									[JvmConstDouble (-1.0)] ++
+									[JvmArithOp Mul typ]
 									)
 
 
@@ -797,37 +862,29 @@ compileExp (Pos pos (ExpCallFunc (Pos _ funName) exps)) = do
 				let argsTypesCode = foldl (\s t -> s ++ t) "" (map (\arg -> jvmMethodShortType arg) argsTyp)
 				let returnTypeCode = jvmMethodShortType retTyp
 				return $ (retTyp, 
-						 expsCode ++ "\n" ++
-						 "invokestatic " ++ progName ++ "/" ++ funName ++ 
-						 "(" ++ argsTypesCode ++ ")" ++ returnTypeCode ++ "\n")
-		Nothing -> return (TypeAny, "; blad nie zaleziono funkcji " ++ funName)
+						 expsCode ++
+						 [JvmCall (progName ++ "/" ++ funName) retTyp argsTyp])
+		Nothing -> return (TypeAny, [JvmComment ("; blad nie zaleziono funkcji " ++ funName)])
 
 		
 compileExp (Pos pos (ExpVar (Pos _ ident))) = do
-	foundSymbol <- findVarDef ident
-
-	case foundSymbol of
-		Nothing -> do
-			return (TypeAny, "; *** error: Nie istnieje zmienna o nazwie '" ++ ident ++ "' ")
-		Just (VarDef ident typ nr) -> do
-			code <- jvmLoad ident
-			return (typ, code)
+	codeJvmLoad ident
 
 compileExp (Pos pos (ExpExp posExp)) = do
 	(expTyp, expCode) <- compileExp posExp
 	return (expTyp, expCode)
 
 compileExp (Pos pos (ExpInt i)) = do
-	return (TypeInt, jvmConst (ExpInt i))
+	return (TypeInt, [JvmConstInt i])
 
 compileExp (Pos pos (ExpDouble d)) = do
-	return (TypeDouble, jvmConst (ExpDouble d))
+	return (TypeDouble, [JvmConstDouble d])
 
 compileExp (Pos pos (ExpString s)) = do
-	return (TypeString, jvmConst (ExpString s))
+	return (TypeString, [JvmConstString s])
 
 compileExp (Pos pos (ExpTrue)) = do
-	return (TypeBoolean, jvmConst ExpTrue)
+	return (TypeBoolean, [JvmConstBoolean True])
 
 compileExp (Pos pos (ExpFalse)) = do
-	return (TypeBoolean, jvmConst ExpFalse)
+	return (TypeBoolean, [JvmConstBoolean False])
