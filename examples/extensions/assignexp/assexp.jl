@@ -16,4 +16,6 @@ int main() {
   if (b = !b) {
     printString("yay!");
   }
+
+  return 0;
 }

@@ -609,8 +609,9 @@ compileStmt (Pos pos (StmtVarsDecl (Pos _ typ) posDecls)) = do
 
 
 compileStmt (Pos pos (StmtAssig posAssig)) = do
-	assigCode <- compileAssig posAssig
-	return assigCode
+	(assigType, assigCode) <- compileAssig posAssig
+	return $ assigCode ++
+			 [JvmPop assigType]
 
 compileStmt (Pos (pos_l,pos_k) (StmtIf posExp posStThen posStElse)) = do
 	(expTyp, expCode) <- compileExp posExp
@@ -671,9 +672,9 @@ compileStmt (Pos (pos_l,pos_k) (StmtWhile posExp posStmt)) = do
 
 
 compileStmt (Pos (pos_l,pos_k) (StmtFor posAssig1 posExp posAssig2 posStmt)) = do
-	assig1Code <- compileAssig posAssig1
+	(assig1Type, assig1Code) <- compileAssig posAssig1
 	(expTyp, expCode) <- compileExp posExp
-	assig2Code <- compileAssig posAssig2
+	(assig2Type, assig2Code) <- compileAssig posAssig2
 
 	pushEmptySymbolTable
 	forCode <- compileStmt posStmt
@@ -725,31 +726,39 @@ compileDecl typ (Pos pos (Decl (Pos _ ident) maybeExp)) = do
 
 
 -- Assig
-compileAssig :: PosAssig -> Context (Code)
+compileAssig :: PosAssig -> Context (Type, Code)
 
-compileAssig (Pos pos (AssigEq (Pos posA ident) posExp)) = do
-	(expTyp, expCode) <- compileExp posExp
-
+compileAssig (Pos pos (AssigEq (Pos _ ident) posExp)) = do
+	(expType, expCode) <- compileExp posExp
+		
 	(storeTyp, storeCode) <- codeJvmStore ident
 
-	return $ expCode ++ 
+	return $ (expType,
+			 expCode ++
+			 [JvmDup expType] ++
 			 storeCode
+			 )
+
 						
 compileAssig (Pos pos (AssigInc (Pos _ ident))) = do
 	(loadTyp, loadCode) <- codeJvmLoad ident
 	(storeTyp, storeCode) <- codeJvmStore ident
-	return $ loadCode ++
-			 [JvmConstInt 1] ++
-			 [JvmArithOp Add TypeInt] ++
-			 storeCode
+	return $ (TypeInt, loadCode ++
+					   [JvmConstInt 1] ++
+					   [JvmArithOp Add TypeInt] ++
+					   [JvmDup TypeInt] ++
+					   storeCode
+					   )
 
 compileAssig (Pos pos (AssigDec (Pos _ ident))) = do
 	(loadTyp, loadCode) <- codeJvmLoad ident
 	(storeTyp, storeCode) <- codeJvmStore ident
-	return $ loadCode ++
-			 [JvmConstInt 1] ++
-			 [JvmArithOp Sub TypeInt] ++
-			 storeCode
+	return $ (TypeInt, loadCode ++
+					   [JvmConstInt 1] ++
+					   [JvmArithOp Sub TypeInt] ++
+					   [JvmDup TypeInt] ++
+					   storeCode
+					   )
 
 -- Exp
 compileExp :: PosExp -> Context (Type, Code)
@@ -960,6 +969,9 @@ compileExp (Pos pos (ExpCast castType posExp)) = do
 		(TypeDouble, ToDouble) -> return (TypeDouble, 
 											expCode
 											)
+
+compileExp (Pos pos (ExpAssig assig)) =
+	compileAssig assig
 				
 compileExp (Pos pos (ExpInt i)) = do
 	return (TypeInt, [JvmConstInt i])

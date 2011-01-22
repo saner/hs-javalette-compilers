@@ -401,23 +401,32 @@ checkDecl typ (Pos pos (Decl (Pos _ ident) maybeExp)) = do
 
 
 -- Assig
-checkAssig :: PosAssig -> Context ()
+checkAssig :: PosAssig -> Context Type
 
 checkAssig (Pos pos (AssigEq (Pos posA ident) posExp)) = do
+	expType <- checkExp posExp
+
 	foundSymbol <- findIdentSymbol ident
-	typ <- checkExp posExp
+
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie mozna dokonac przypisania, nie ma zadeklarowanej zmiennej o nazwie '" ++ ident ++ "' ") posA)
-			addSymbol (VarSymbol ident typ) 
+			addSymbol (VarSymbol ident expType) 
+			return expType
 		Just symbol ->
 			case symbol of
-				VarSymbol ident varTyp ->
-					if compatibleAssigTypes varTyp typ
-						then addSymbol $ VarSymbol ident varTyp
-						else addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
-				FunctionSymbol ident funTyp args ->
+				VarSymbol ident varType ->
+					if compatibleAssigTypes varType expType
+						then do 
+							addSymbol $ VarSymbol ident varType
+							return varType
+						else do 
+								addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
+								return expType
+				FunctionSymbol ident funTyp args -> do
 						addMessage (Error (ident ++ "to funkcja, nie mozna przypisywac na funkcje") posA)
+						return expType
+
 						
 checkAssig (Pos pos (AssigInc (Pos _ ident))) = do
 	foundSymbol <- findIdentSymbol ident
@@ -425,14 +434,18 @@ checkAssig (Pos pos (AssigInc (Pos _ ident))) = do
 		Nothing -> do
 			addMessage (Error ("Nie istnieje zmienna o nazwie '" ++ ident ++ "' ") pos)
 			addSymbol (VarSymbol ident TypeInt)
+			return TypeInt
 		Just symbol ->
 			case symbol of
 				VarSymbol ident typ ->
 					if typ == TypeInt
-						then return ()
-						else addMessage (Error ("Nie mozna dokonac inc/dec na typie '" ++ (show typ) ++ "' ") pos)
-				FunctionSymbol ident funTyp args ->
+						then return TypeInt
+						else do 
+							addMessage (Error ("Nie mozna dokonac inc/dec na typie '" ++ (show typ) ++ "' ") pos)
+							return TypeInt
+				FunctionSymbol ident funType args -> do
 						addMessage (Error (ident ++ "to funkcja, nie mozna dokonac inc/dec na funkcji") pos)
+						return funType
 
 checkAssig (Pos pos (AssigDec (Pos _ ident))) = do
 	checkAssig (Pos pos (AssigInc (Pos pos ident)))
@@ -551,6 +564,8 @@ checkExp (Pos pos (ExpCast castType posExp)) = do
 				addMessage (Error ("Nie mozna dokonac konwersji z '" ++ (show expType) ++ "' do '" ++ (show castType) ++ "'") pos)
 				return TypeAny
 				
+checkExp (Pos pos (ExpAssig assig)) = do
+	checkAssig assig
 
 
 checkExp (Pos pos (ExpExp posExp)) =

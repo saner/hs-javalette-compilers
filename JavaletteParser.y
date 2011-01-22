@@ -73,10 +73,7 @@ DeclList : Decl { [ $1 ] }
 		 | Decl "," DeclList { $1 : $3 }
 Decl : Ident { Pos (getPos $1) $ Decl (unIdent $1) Nothing }
 	 | Ident "=" Exp { Pos (getPos $1) $ Decl (unIdent $1) (Just $3) }
-StmtAssig : Assig ";" { Pos (getPos $1) $ StmtAssig $1 }
-Assig : Ident "=" Exp { Pos (getPos $1) $ AssigEq (unIdent $1) $3 }
-	  | Ident "++" { Pos (getPos $1) $ AssigInc (unIdent $1) }
-	  | Ident "--" { Pos (getPos $1) $ AssigDec (unIdent $1) }
+StmtAssig : ExpAssig ";" { Pos (getPos $1) $ StmtAssig $1 }
 StmtIf : "if" "(" Exp ")" Stmt { Pos (getPos $1) $ StmtIf $3 $5 $ Pos (getPos $1) StmtEmpty }
 	   | "if" "(" Exp ")" Stmt "else" Stmt { Pos (getPos $1) $ StmtIf $3 $5 $7 }
 StmtWhile : "while" "(" Exp ")" Stmt { Pos (getPos $1) $ StmtWhile $3 $5 }
@@ -90,7 +87,12 @@ Type : "int" { Pos (getPos $1) TypeInt }
 	 | "boolean" { Pos (getPos $1) TypeBoolean }
 	 | "void" { Pos (getPos $1) TypeVoid }
 
-Exp : ExpOr { $1 }
+Exp : ExpOr { $1 } 
+	| ExpAssig { Pos (getPos $1) $ ExpAssig $1 }
+ExpAssig : Assig { $1 }
+Assig : Ident "=" ExpAddi { Pos (getPos $1) $ AssigEq (unIdent $1) $3 }
+	  | Ident "++" { Pos (getPos $1) $ AssigInc (unIdent $1) }
+	  | Ident "--" { Pos (getPos $1) $ AssigDec (unIdent $1) }
 ExpOr : ExpAnd { $1 }
 	| ExpOr "||" ExpAnd { Pos (getPos $1) $ ExpBinaryOp BoolOr $1 $3 }
 ExpAnd : ExpCompe { $1 }
@@ -110,10 +112,11 @@ ExpMulti : ExpOneArg { $1 }
 		| ExpMulti "*" ExpOneArg { Pos (getPos $1) $ ExpBinaryOp MultiMulti $1 $3 }
 		| ExpMulti "/" ExpOneArg { Pos (getPos $1) $ ExpBinaryOp MultiDiv $1 $3 }
 		| ExpMulti "%" ExpOneArg { Pos (getPos $1) $ ExpBinaryOp MultiMod $1 $3 }
-ExpOneArg : ExpPostfix { $1 }
-		| "!" ExpOneArg { Pos (getPos $1) $ ExpUnaryOp UnaryNot $2 }
+ExpOneArg : ExpOneArgNot { $1 }
 		| "+" ExpOneArg { Pos (getPos $1) $ ExpUnaryOp UnaryPlus $2 }
 		| "-" ExpOneArg { Pos (getPos $1) $ ExpUnaryOp UnaryMinus $2 }
+ExpOneArgNot : ExpPostfix { $1 }
+		| "!" ExpPostfix { Pos (getPos $1) $ ExpUnaryOp UnaryNot $2 }
 ExpPostfix : ExpSimp { $1 }
 		| ExpCallFunc { $1 }
 ExpCallFunc : Ident "(" ExpList ")" { Pos (getPos $1) $ ExpCallFunc (unIdent $1) $3 }
@@ -123,9 +126,9 @@ ExpList : Exp { [ $1 ] }
 ExpSimp : Ident { Pos (getPos $1) $ ExpVar (unIdent $1) }
 		| Literal { $1 }
 		| "(" Exp ")" { Pos (getPos $1) $ ExpExp $2 }
-		| "(" "boolean" ")" ExpSimp { Pos (getPos $1) $ ExpCast ToBoolean $4 }
-		| "(" "int" ")" ExpSimp { Pos (getPos $1) $ ExpCast ToInt $4 }
-		| "(" "double" ")" ExpSimp { Pos (getPos $1) $ ExpCast ToDouble $4 }
+		| "(" "boolean" ")" ExpOneArgNot { Pos (getPos $1) $ ExpCast ToBoolean $4 }
+		| "(" "int" ")" ExpOneArgNot { Pos (getPos $1) $ ExpCast ToInt $4 }
+		| "(" "double" ")" ExpOneArgNot { Pos (getPos $1) $ ExpCast ToDouble $4 }
 Literal : IntLiteral { Pos (getPos $1) $ ExpInt (unInt $1) }
 		| DoubleLiteral { Pos (getPos $1) $ ExpDouble (unDouble $1) }
 		| StringLiteral { Pos (getPos $1) $ ExpString (unString $1) }
@@ -197,12 +200,6 @@ data Decl = Decl PosIdent (Maybe PosExp)
 			deriving (Show, Eq)
 type PosDecl = Pos Decl
 
-data Assig = AssigEq PosIdent PosExp
-		  | AssigInc PosIdent
-		  | AssigDec PosIdent
-			deriving (Show, Eq)
-type PosAssig = Pos Assig
-
 data BinaryOp = BoolAnd | BoolOr
 				| ComperEq | ComperNotEq
 				| RelaLe | RelaLeEq | RelaGt | RelaGtEq
@@ -228,8 +225,17 @@ data Exp = ExpList [PosExp]
 		| ExpTrue
 		| ExpFalse
 		| ExpCast CastType PosExp -- do castowania, zawiera typ konwersji oraz wyrazenie podlegajace jej
+		| ExpAssig PosAssig
 		deriving (Show, Eq)
+
 type PosExp = Pos Exp
+
+data Assig = AssigEq PosIdent PosExp
+		| AssigInc PosIdent
+		| AssigDec PosIdent
+		deriving (Show, Eq)
+
+type PosAssig = Pos Assig
 
 
 -- obsluga bledow
