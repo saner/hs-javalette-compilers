@@ -11,8 +11,9 @@ import JavaletteParser
 
 -- typy zastosowane w programie
 
-data Symbol = VarSymbol Ident Type
-			| FunctionSymbol Ident Type [Type]
+data Symbol = VarNormalSymbol Ident Type
+			| VarArraySymbol Ident Type (Either Int Ident)
+			| FunctionSymbol Ident RetType [RetType]
 			deriving (Show, Eq)
 
 type SymbolTable = Map.Map Ident Symbol
@@ -28,6 +29,14 @@ data Message = Error String Position
 type Messages = [Message]
 
 type Context a = State (SymbolTables, Messages) a
+
+
+data RetType = RetVar Type
+			 | RetArray Type (Either Int Ident)
+			 deriving (Show, Eq)
+
+type ExpRetType = RetType
+
 
 -- funkcje dodatkowe
 
@@ -67,7 +76,10 @@ addSymbol :: Symbol -> Context ()
 addSymbol symbol = do
 	(table:tables, messages) <- get
 	case symbol of
-		VarSymbol ident _ ->  do
+		VarNormalSymbol ident _ ->  do
+			let newTable = Map.insert ident symbol table
+			put(newTable:tables, messages)
+		VarArraySymbol ident _ _ ->  do
 			let newTable = Map.insert ident symbol table
 			put(newTable:tables, messages)
 		FunctionSymbol ident _ _ ->  do
@@ -93,6 +105,19 @@ findIdentSymbol ident = do
 				Just symbol -> Just symbol
 		findInTable ident [] = Nothing
 
+findVarSymbol :: Var -> Context (Ident, Maybe Symbol)
+findVarSymbol var = do
+	(tables, messages) <- get
+
+	let ident = case var of
+					VarNormal ident -> ident
+					VarArray ident size -> ident
+
+	found <- findIdentSymbol ident
+
+	return (ident, found)
+
+
 
 
 pushEmptySymbolTable :: Context ()
@@ -107,57 +132,92 @@ popSymbolTable = do
 	(table:tables, messages) <- get
 	put(tables, messages)
 
-compatibleAssigTypes :: Type -> Type -> Bool
+typeFromRetType :: RetType -> Type
+typeFromRetType ret =
+	case ret of
+		RetVar typ -> typ
+		RetArray typ size -> typ
+
+assertExistsVarNormal :: Ident -> (Int,Int) -> Context ()
+assertExistsVarNormal ident pos = do
+	found <- findIdentSymbol ident
+
+	case found of
+		Just symbol ->
+			case symbol of
+				VarNormalSymbol _ typ -> return ()
+				_ -> addMessage (Error ("Zmiennej o nazwie " ++ ident ++ " nie istnieje ") pos)
+		Nothing -> addMessage (Error ("Zmiennej o nazwie " ++ ident ++ " nie istnieje ") pos)
+
+
+compatibleAssigTypes :: RetType -> RetType -> Bool
 compatibleAssigTypes typ1 typ2 =
-	if typ1 == typ2
-		then True
-		else
-			case (typ1, typ2) of
-				--(TypeDouble, TypeInt) -> True
-				(TypeAny, _) -> True
-				(_, TypeAny) -> True
-				_ -> False
+	case (typ1,typ2) of
+		(RetArray typ1 size1, RetArray typ2 size2) -> 
+			(compatibleAssigTypes (RetVar typ1) (RetVar typ2)) && (size1 == size2)
+		(RetVar typ1, RetVar typ2) -> 
+			if typ1 == typ2
+				then True
+				else
+					case (typ1, typ2) of
+						--(TypeDouble, TypeInt) -> True
+						(TypeAny, _) -> True
+						(_, TypeAny) -> True
+						_ -> False
+		(_, _) -> False
 
-compatibleCompTypes :: Type -> Type -> Bool
+compatibleCompTypes :: RetType -> RetType -> Bool
 compatibleCompTypes typ1 typ2 =
-	if typ1 == typ2
-		then True
-		else
-			case (typ1, typ2) of
-				(TypeInt, TypeBoolean) -> True
-				(TypeBoolean, TypeInt) -> True
-				(TypeAny, _) -> True
-				(_, TypeAny) -> True
-				_ -> False
+	case (typ1, typ2) of
+		(RetVar typ1, RetVar typ2) -> 
+			if typ1 == typ2
+				then True
+				else
+					case (typ1, typ2) of
+						(TypeInt, TypeBoolean) -> True
+						(TypeBoolean, TypeInt) -> True
+						(TypeAny, _) -> True
+						(_, TypeAny) -> True
+						_ -> False
+		(_, _) -> False
 
-compatibleOpBinTypes :: Type -> Type -> Type
+compatibleOpBinTypes :: RetType -> RetType -> Type
 compatibleOpBinTypes typ1 typ2 =
-	if typ1 == typ2
-		then typ1
-		else
-			case (typ1, typ2) of
-				(TypeInt, TypeBoolean) -> TypeBoolean
-				(TypeBoolean, TypeInt) -> TypeBoolean
-				(TypeAny, _) -> typ2
-				(_, TypeAny) -> typ1
-				_ -> TypeAny
+	case (typ1, typ2) of
+		(RetVar typ1, RetVar typ2) -> 
+			if typ1 == typ2
+				then typ1
+				else
+					case (typ1, typ2) of
+						(TypeInt, TypeBoolean) -> TypeBoolean
+						(TypeBoolean, TypeInt) -> TypeBoolean
+						(TypeAny, _) -> typ2
+						(_, TypeAny) -> typ1
+						_ -> TypeAny
+		(_, _) -> TypeAny
 
-compatibleArithTypes :: Type -> Bool
+compatibleArithTypes :: RetType -> Bool
 compatibleArithTypes typ =
 	case typ of
-		TypeDouble -> True
-		TypeInt -> True
-		TypeAny -> True
+		RetVar typ -> 
+			case typ of
+				TypeDouble -> True
+				TypeInt -> True
+				TypeAny -> True
+				_ -> False
 		_ -> False
 
-compatibleBoolTypes :: Type -> Bool
+compatibleBoolTypes :: RetType -> Bool
 compatibleBoolTypes typ =
 	case typ of
-		TypeBoolean -> True
+		RetVar typ -> 
+			case typ of
+				TypeBoolean -> True
+				_ -> False
 		_ -> False
 
 addWasReturn :: Context () -- hack
-addWasReturn = addSymbol $ VarSymbol "**was_return**" TypeAny
+addWasReturn = addSymbol $ VarNormalSymbol "**was_return**" TypeAny
 
 wasReturn :: Context (Bool) -- hack
 wasReturn = do
@@ -186,12 +246,12 @@ checkProgram (Program funs) = do
 
 addBuiltInFunsDefs :: Context ()
 addBuiltInFunsDefs = do
-	addSymbol $ FunctionSymbol "printInt" TypeVoid [TypeInt]	
-	addSymbol $ FunctionSymbol "printDouble" TypeVoid [TypeDouble]	
-	addSymbol $ FunctionSymbol "printString" TypeVoid [TypeString]	
-	addSymbol $ FunctionSymbol "error" TypeVoid []	
-	addSymbol $ FunctionSymbol "readInt" TypeInt []	
-	addSymbol $ FunctionSymbol "readDouble" TypeDouble []	
+	addSymbol $ FunctionSymbol "printInt" (RetVar TypeVoid) [RetVar TypeInt]	
+	addSymbol $ FunctionSymbol "printDouble" (RetVar TypeVoid) [RetVar TypeDouble]	
+	addSymbol $ FunctionSymbol "printString" (RetVar TypeVoid) [RetVar TypeString]	
+	addSymbol $ FunctionSymbol "error" (RetVar TypeVoid) []	
+	addSymbol $ FunctionSymbol "readInt" (RetVar TypeInt) []	
+	addSymbol $ FunctionSymbol "readDouble" (RetVar TypeDouble) []	
 
 
 addFunctionsDefs :: [PosFunction] -> Context ()
@@ -200,17 +260,26 @@ addFunctionsDefs posFuns = do
 	add posFuns
 	return ()
 	where
-		add ((Pos _ fun):[]) =
-			addFunctionDef fun
+		add [] = return ()
 		add ((Pos _ fun):funs) = do
 			addFunctionDef fun
 			add funs
 
 
 addFunctionDef :: Function -> Context ()
-addFunctionDef (Function (Pos _ ident) (Pos pos typ) args stms) = do
-	let argsTypes = map (\((Pos _ _),(Pos _ t)) -> t) args
-	addSymbol $ FunctionSymbol ident typ argsTypes
+addFunctionDef (Function (Pos _ ident) (Pos pos typ) args stms nestedVars nestedFuns) = do
+	let argsTypes = getArgs args
+
+	addSymbol $ FunctionSymbol ident (RetVar typ) argsTypes
+
+	where
+		getArgs :: [(PosVar, PosType)] -> [RetType]
+		getArgs [] = []
+		getArgs (((Pos _ var), (Pos _ typ)):args) =
+			case var of
+				VarNormal ident -> (RetVar typ) : (getArgs args)
+				VarArray ident size -> (RetArray typ size) : (getArgs args)
+			
 
 
 checkMainExitsInTable :: Context ()
@@ -220,8 +289,8 @@ checkMainExitsInTable = do
 		Nothing -> addMessage $ Error "Nie ma funkcji main()" (0,0)
 		Just symbol ->
 			case symbol of
-				VarSymbol _ _ -> addMessage $ Error "Nie ma funkcji main()" (0,0)
 				FunctionSymbol i t a -> return ()
+				_ -> addMessage $ Error "Nie ma funkcji main()" (0,0)
 
 
 checkFunctions :: [PosFunction] -> Context ()
@@ -230,8 +299,7 @@ checkFunctions posFuns = do
 	check posFuns
 	return ()
 	where
-		check (fun:[]) =
-			checkFunction fun
+		check [] = return ()
 		check (fun:funs) = do
 			checkFunction fun
 			check funs
@@ -241,32 +309,67 @@ checkFunctions posFuns = do
 
 checkFunction :: PosFunction -> Context ()
 
-checkFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) = do
+checkFunction (Pos pos (Function (Pos posI ident) (Pos posR returnTyp) args stms nestedVars nestedFuns)) = do
+
 	pushEmptySymbolTable
 
-	addSymbol $ VarSymbol "**return_type**" returnTyp --hack
+	-- let defArgs = map (\((Pos _ _),(Pos _ t)) -> t) args
+	-- addSymbol $ FunctionSymbol ident returnTyp defArgs
+	addFunctionDef (Function (Pos posI ident) (Pos posR returnTyp) args stms nestedVars nestedFuns)
 
-	let defArgs = map (\((Pos _ _),(Pos _ t)) -> t) args
-	addSymbol $ FunctionSymbol ident returnTyp defArgs
+
+	-- dodanie zagniezdzonych zmiennych
+	addNestedVars nestedVars	
+
+	-- dodanie zagniezdzonych funkcji
+	addNestedFuns nestedFuns
 	
+
+	-- analiza funkcji
+	pushEmptySymbolTable
+
+	addSymbol $ VarNormalSymbol "**return_type**" returnTyp --hack
+
+	-- dodanie argumentow funkcji
 	addArgs args
+
+	-- sprawdzenie ciala funkcji
 	checkBody stms
 
 	checkWasReturn pos -- hack
 	
-	popSymbolTable
+	popSymbolTable -- tablica od zmiennych i ciala funkcji
+
+	popSymbolTable -- tablica od zagniezdzonych zmiennych i funkcji
 
 	where
 		addArgs [] = return ()
-		addArgs (((Pos _ ident),(Pos _ typ)):args) = do
-			addSymbol $ VarSymbol ident typ
+		addArgs (((Pos _ var),(Pos _ typ)):args) = do
+			case var of
+				VarNormal ident -> addSymbol $ VarNormalSymbol ident typ
+				VarArray ident size -> addSymbol $ VarArraySymbol ident typ size
 			addArgs args
 
 		checkBody [] = return ()
 		checkBody (stmt:stms) = do
 			checkStmt stmt
 			checkBody stms
-	
+
+
+addNestedVars :: [PosStmt] -> Context ()
+addNestedVars [] = return ()
+addNestedVars (posStmt:stmts) = do
+	-- zmienne zostana dodane do tego srodowiska, czyli srodowiska zagniezdzonego
+	checkStmt posStmt
+	addNestedVars stmts
+
+addNestedFuns :: [PosFunction] -> Context ()
+addNestedFuns [] = return ()
+addNestedFuns funs = do
+	-- najpierw sprawdzmy kazda zmienna z osobna
+	checkFunctions funs
+	-- teraz dodajmy definicje zmiennych do srodowiska zagniezdzonego
+	addFunctionsDefs funs
 
 -- Stmt
 
@@ -348,7 +451,7 @@ checkStmt (Pos pos (StmtReturn maybePosExp)) = do
 			case foundSymbol of
 				Just symbol ->
 					case symbol of
-						VarSymbol ident varTyp  -> 
+						VarNormalSymbol ident varTyp  -> 
 							if varTyp == TypeVoid
 								then return ()
 								else do
@@ -359,11 +462,11 @@ checkStmt (Pos pos (StmtReturn maybePosExp)) = do
 			case foundSymbol of
 				Just symbol ->
 					case symbol of
-						VarSymbol ident varTyp -> 
-							if varTyp == expTyp
+						VarNormalSymbol ident varTyp -> 
+							if (RetVar varTyp) == expTyp
 								then return ()
 								else 
-									if expTyp == TypeAny 
+									if expTyp == (RetVar TypeAny)
 										then return ()
 										else do 
 												addMessage (Error "Zly typ zwracanej wartosci" pos) 
@@ -379,82 +482,119 @@ checkStmt (Pos pos (StmtEmpty)) = do
 
 -- Decl
 checkDecl :: Type -> PosDecl -> Context ()
-checkDecl typ (Pos pos (Decl (Pos _ ident) maybeExp)) = do
+
+checkDecl typ (Pos pos (Decl (Pos _ (VarNormal ident)) maybeExp)) = do
 	foundSymbol <- findSymbolInTopTable ident
 	case foundSymbol of
 		Nothing -> 
 			case maybeExp of
-				Nothing -> addSymbol (VarSymbol ident typ) 
+				Nothing -> addSymbol (VarNormalSymbol ident typ) 
 				Just posExp -> do
 					typExp <- checkExp posExp
-					if compatibleAssigTypes typ typExp
-						then addSymbol (VarSymbol ident typ) 
+					if compatibleAssigTypes (RetVar typ) typExp
+						then addSymbol (VarNormalSymbol ident typ) 
 						else do
 							addMessage (Error ("Blad w deklaracji '" ++ ident ++ "' zle typy " ++ (show typ) ++ " = " ++ (show typExp)) pos)
-							addSymbol (VarSymbol ident typ) 
-		Just symbol ->
-			case symbol of
-				VarSymbol ident typ -> do
-					addMessage (Error ("Istnieje zmienan o nazwie " ++ ident ++ " w tym bloku") pos)
-					addSymbol (VarSymbol ident TypeAny) 
+							addSymbol (VarNormalSymbol ident typ) 
+		Just symbol -> do
+			addMessage (Error ("Istnieje zmienan o nazwie " ++ ident ++ " w tym bloku") pos)
+			addSymbol (VarNormalSymbol ident TypeAny) 
+
+checkDecl typ (Pos pos (Decl (Pos _ (VarArray ident size)) maybeExp)) = do
+	foundSymbol <- findSymbolInTopTable ident
+	case foundSymbol of
+		Nothing -> 
+			case maybeExp of
+				Nothing -> addSymbol (VarArraySymbol ident typ size)
+				Just posExp -> do
+						addMessage (Error ("Nie mozna inicjowac wartosciami tablicy przy tworzeniu '" ++ ident ++ "'") pos)
+						addSymbol (VarArraySymbol ident typ size) 
+		Just symbol -> do
+			addMessage (Error ("Istnieje zmienna o nazwie " ++ ident ++ " w tym bloku") pos)
+			addSymbol (VarNormalSymbol ident TypeAny) 
 
 
 
 -- Assig
-checkAssig :: PosAssig -> Context Type
+checkAssig :: PosAssig -> Context ExpRetType
 
-checkAssig (Pos pos (AssigEq (Pos posA ident) posExp)) = do
+checkAssig (Pos pos (AssigEq (Pos posA var) posExp)) = do
 	expType <- checkExp posExp
 
-	foundSymbol <- findIdentSymbol ident
+	(ident, foundSymbol) <- findVarSymbol var
 
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie mozna dokonac przypisania, nie ma zadeklarowanej zmiennej o nazwie '" ++ ident ++ "' ") posA)
-			addSymbol (VarSymbol ident expType) 
-			return expType
+			addSymbol (VarNormalSymbol ident (typeFromRetType expType)) 
+			return $ expType
 		Just symbol ->
-			case symbol of
-				VarSymbol ident varType ->
-					if compatibleAssigTypes varType expType
-						then do 
-							addSymbol $ VarSymbol ident varType
-							return varType
-						else do 
-								addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
+			case (symbol,var,expType) of
+				(VarNormalSymbol sId sTyp,VarNormal uId,RetVar eType) -> -- : a = b
+						if compatibleAssigTypes (RetVar sTyp) expType
+							then return $ RetVar sTyp
+							else do 
+									addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
+									return expType
+				(VarArraySymbol sId sTyp sSize,VarNormal uId,RetArray eType eSize) -> -- przypisanie: a[] = b[]
+						if compatibleAssigTypes (RetArray sTyp sSize) expType
+							then return $ (RetArray sTyp sSize)
+							else do 
+									addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
+									return expType
+				(VarArraySymbol sId sTyp sSize,VarArray uId uSize,RetVar eType) -> -- przypisanie: a[1] = b
+						if compatibleAssigTypes (RetVar sTyp) expType
+							then return $ (RetVar sTyp)
+							else do 
+									addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
+									return expType
+				(VarNormalSymbol sId sTyp,VarArray uId uType,RetVar eType) -> do
+								addMessage (Error ("Zmienna '" ++ ident ++ "' nie jest tablica") posA)
 								return expType
-				FunctionSymbol ident funTyp args -> do
-						addMessage (Error (ident ++ "to funkcja, nie mozna przypisywac na funkcje") posA)
-						return expType
+				(_,_,_) -> do
+								addMessage (Error ("Nie mozna dokonac przypisania") posA)
+								return expType
+
+
+
 
 						
-checkAssig (Pos pos (AssigInc (Pos _ ident))) = do
-	foundSymbol <- findIdentSymbol ident
+checkAssig (Pos pos (AssigInc (Pos _ var))) = do
+	(ident, foundSymbol) <- findVarSymbol var
+
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie istnieje zmienna o nazwie '" ++ ident ++ "' ") pos)
-			addSymbol (VarSymbol ident TypeInt)
-			return TypeInt
+			addSymbol (VarNormalSymbol ident TypeInt)
+			return $ RetVar TypeInt
 		Just symbol ->
-			case symbol of
-				VarSymbol ident typ ->
-					if typ == TypeInt
-						then return TypeInt
-						else do 
-							addMessage (Error ("Nie mozna dokonac inc/dec na typie '" ++ (show typ) ++ "' ") pos)
-							return TypeInt
-				FunctionSymbol ident funType args -> do
-						addMessage (Error (ident ++ "to funkcja, nie mozna dokonac inc/dec na funkcji") pos)
-						return funType
+			case (symbol,var) of
+				(VarNormalSymbol sId sTyp,VarNormal uId) ->
+						if sTyp == TypeInt
+							then return $ RetVar TypeInt
+							else do 
+									addMessage (Error ("Nie mozna dokonac dec/inc na '" ++ ident ++ "', zle typy ") pos)
+									return $ RetVar TypeInt
+				(VarArraySymbol sId sTyp sSize,VarArray uId uSize) ->
+						if sTyp == TypeInt
+							then return $ RetVar TypeInt
+							else do 
+									addMessage (Error ("Nie mozna dokonac dec/inc na '" ++ ident ++ "', zle typy ") pos)
+									return $ RetVar TypeInt
+				(_,_) -> do
+								addMessage (Error ("Nie mozna dokonac dec/inc ") pos)
+								return $ RetVar TypeInt
 
-checkAssig (Pos pos (AssigDec (Pos _ ident))) = do
-	checkAssig (Pos pos (AssigInc (Pos pos ident)))
+checkAssig (Pos pos (AssigDec (Pos _ var))) = do
+	checkAssig (Pos pos (AssigInc (Pos pos var)))
 
 -- Exp
-checkExp :: PosExp -> Context Type
+checkExp :: PosExp -> Context ExpRetType
 
 checkExp (Pos pos (ExpList exps)) = do
-	check exps
+	checkType <- check exps
+
+	return $ RetVar checkType
 		where
 			check [] = return TypeAny
 			check (exp:exps) = do
@@ -468,22 +608,22 @@ checkExp (Pos pos (ExpBinaryOp binOp posExp1 posExp2)) = do
 
 	if elem binOp [BoolAnd, BoolOr]
 		then if (compatibleBoolTypes typ1) && (compatibleBoolTypes typ2)
-				then return TypeBoolean
+				then return $ RetVar TypeBoolean
 				else do
 					addMessage (Error ((show binOp) ++ " mozna wykonac tylko na typie Boolean") pos1)
-					return TypeBoolean
+					return $ RetVar TypeBoolean
 		else if elem binOp [ComperEq, ComperNotEq, RelaLe, RelaLeEq, RelaGt, RelaGtEq]
 				then if compatibleCompTypes typ1 typ2
-						then return TypeBoolean
+						then return $ RetVar TypeBoolean
 						else do
 							addMessage (Error ("Zle typy w operacji " ++ (binOpName binOp)) pos1)
-							return TypeBoolean
+							return $ RetVar TypeBoolean
 				else case compatibleOpBinTypes typ1 typ2 of
 						TypeAny -> do
 							addMessage (Error ("Zle typy w operaci " ++ (binOpName binOp)) pos1)
-							return TypeAny
+							return $ RetVar TypeAny
 						_ -> do
-							return (compatibleOpBinTypes typ1 typ2)
+							return $ RetVar (compatibleOpBinTypes typ1 typ2)
 
 checkExp (Pos pos (ExpUnaryOp unOp posExp)) = do
 	typ <- checkExp posExp
@@ -494,13 +634,14 @@ checkExp (Pos pos (ExpUnaryOp unOp posExp)) = do
 				then return typ
 				else do
 					addMessage (Error ("Typ " ++ (show typ) ++ " niekompatybilny z operacja " ++ (unOpName unOp)) pos)
-					return TypeBoolean
+					return $ RetVar TypeBoolean
 		else
 			if compatibleArithTypes typ
 				then return typ
 				else do
 					addMessage (Error ("Typ " ++ (show typ) ++ " niekompatybilny z operacja " ++ (unOpName unOp)) pos)
-					return TypeAny
+					return $ RetVar TypeAny
+
 
 checkExp (Pos pos (ExpCallFunc (Pos _ ident) exps)) = do
 	foundSymbol <- findIdentSymbol ident
@@ -509,7 +650,7 @@ checkExp (Pos pos (ExpCallFunc (Pos _ ident) exps)) = do
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie istnieje funkcja o nazwie '" ++ ident ++ "' ") pos)
-			return TypeAny
+			return $ RetVar TypeAny
 		Just symbol ->
 			case symbol of
 				FunctionSymbol ident funTyp funArgs -> do
@@ -529,40 +670,56 @@ checkExp (Pos pos (ExpCallFunc (Pos _ ident) exps)) = do
 										addMessage (Error ("Blad typu parametru dla funkcji " ++ ident) pos)
 										checkArgs fts fas
 								
-				VarSymbol ident typ -> do
+				_ -> do
 						addMessage (Error ("Nie istnieje funkcja o nazwie '" ++ ident ++ "' ") pos)
-						return TypeAny
+						return $ RetVar TypeAny
 		
-checkExp (Pos pos (ExpVar (Pos _ ident))) = do
-	foundSymbol <- findIdentSymbol ident
+
+checkExp (Pos pos (ExpVar (Pos _ var))) = do
+	(ident, foundSymbol) <- findVarSymbol var
 
 	case foundSymbol of
 		Nothing -> do
 			addMessage (Error ("Nie istnieje zmienna o nazwie '" ++ ident ++ "' ") pos)
-			return TypeAny
+			return $ RetVar TypeAny
 		Just symbol ->
-			case symbol of
-				FunctionSymbol ident funTyp args -> do
+			case (var, symbol) of
+				(_, FunctionSymbol ident funTyp args) -> do
 						addMessage (Error ("Nie ma zmiennej o nazwie " ++ ident ++ ", ale istnieje taka funkcja") pos)
-						return TypeAny
-				VarSymbol ident typ -> return typ
+						return $ RetVar TypeAny
+				(VarNormal _, VarNormalSymbol ident typ) -> return $ RetVar typ
+				(VarNormal _, VarArraySymbol ident typ size) -> return $ RetArray typ size
+				(VarArray _ index, VarNormalSymbol ident typ) -> do
+						addMessage (Error ("Zmiennej o nazwie " ++ ident ++ " nie jest tablica") pos)
+						return $ RetVar typ
+				(VarArray _ index, VarArraySymbol ident typ size) -> do
+						case index of
+							Left index -> return $ RetVar typ
+							Right indexIdent -> do
+										assertExistsVarNormal indexIdent pos
+										return $ RetVar typ
 		
 
 checkExp (Pos pos (ExpCast castType posExp)) = do
 	expType <- checkExp posExp
 
-	case (expType, castType) of
-		(TypeInt, ToInt) -> return TypeInt
-		(TypeInt, ToDouble) -> return TypeDouble
-		(TypeInt, ToBoolean) -> return TypeBoolean
-		(TypeBoolean, ToInt) -> return TypeInt
-		(TypeBoolean, ToBoolean) -> return TypeBoolean
-		(TypeDouble, ToInt) -> return TypeInt
-		(TypeDouble, ToDouble) -> return TypeDouble
-		(TypeAny, _) -> return TypeAny
-		_ -> do 
-				addMessage (Error ("Nie mozna dokonac konwersji z '" ++ (show expType) ++ "' do '" ++ (show castType) ++ "'") pos)
-				return TypeAny
+	case expType of
+		RetVar typ ->
+			case (typ, castType) of
+				(TypeInt, ToInt) -> return $ RetVar TypeInt
+				(TypeInt, ToDouble) -> return $ RetVar TypeDouble
+				(TypeInt, ToBoolean) -> return $ RetVar TypeBoolean
+				(TypeBoolean, ToInt) -> return $ RetVar TypeInt
+				(TypeBoolean, ToBoolean) -> return $ RetVar TypeBoolean
+				(TypeDouble, ToInt) -> return $ RetVar TypeInt
+				(TypeDouble, ToDouble) -> return $ RetVar TypeDouble
+				(TypeAny, _) -> return $ RetVar TypeAny
+				_ -> do 
+						addMessage (Error ("Nie mozna dokonac konwersji z '" ++ (show expType) ++ "' do '" ++ (show castType) ++ "'") pos)
+						return $ RetVar TypeAny
+		RetArray _ _ -> do 
+						addMessage (Error ("Nie mozna dokonac rzutowani z tablicy ") pos)
+						return $ RetVar TypeAny
 				
 checkExp (Pos pos (ExpAssig assig)) = do
 	checkAssig assig
@@ -572,16 +729,16 @@ checkExp (Pos pos (ExpExp posExp)) =
 	checkExp posExp
 
 checkExp (Pos pos (ExpInt _)) =
-	return TypeInt
+	return $ RetVar TypeInt
 
 checkExp (Pos pos (ExpDouble _)) =
-	return TypeDouble
+	return $ RetVar TypeDouble
 
 checkExp (Pos pos (ExpString _)) =
-	return TypeString
+	return $ RetVar TypeString
 
 checkExp (Pos pos (ExpTrue)) =
-	return TypeBoolean
+	return $ RetVar TypeBoolean
 
 checkExp (Pos pos (ExpFalse)) =
-	return TypeBoolean
+	return $ RetVar TypeBoolean

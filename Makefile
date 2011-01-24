@@ -1,4 +1,13 @@
-all: JVMCompilerTest.hs SemanticChecking.hs JavaletteParser.hs JavaletteLexer.hs
+all: jvm-test tac-test
+
+
+tac-test: GenTacTest.hs GenTac.hs SemanticChecking.hs JavaletteParser.hs JavaletteLexer.hs
+	ghc --make GenTacTest.hs
+
+tac: GenTacTest.hs GenTac.hs SemanticChecking.hs JavaletteParser.hs JavaletteLexer.hs
+	ghc --make GenTac.hs
+
+jvm-test: JVMCompilerTest.hs JVMCompiler.hs SemanticChecking.hs JavaletteParser.hs JavaletteLexer.hs
 	ghc --make JVMCompilerTest.hs
 
 semantic-test: SemanticChecking.hs JavaletteParser.hs JavaletteLexer.hs
@@ -18,7 +27,7 @@ lexer-test: JavaletteLexer.hs
 
 lexer: JavaletteLexer.x
 	alex JavaletteLexer.x
-	ghc --make JavaletteLexerTest.hs
+	ghc --make JavaletteLexer.hs
 
 clean:
 	-rm -f *.hi *.o *~

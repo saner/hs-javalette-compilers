@@ -1,7 +1,7 @@
 #!/bin/bash
 
 i=1
-for f in examples/good/core*.jl; do
+for f in examples/bad/*.jl; do
     out=${f%.*}
     echo "Test ${i}"
     cat $f | ./JVMCompilerTest > ProgTest.j 

@@ -6,7 +6,6 @@ import Control.Monad.State
 import qualified Data.Map as Map
 import System.IO
 import System.IO.Unsafe
-import Control.Parallel.Strategies (rnf)
 
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BSC8
@@ -70,14 +69,11 @@ type Code = [JvmCode]
 
 -- funkcje dodatkowe
 
-inList :: Eq a => a -> [a] -> Bool
-inList e (el:els) =
-	if e == el
-		then True
-		else
-			inList e els
-inList e [] = False
-
+hahaVarToIndent :: Var -> Ident
+hahaVarToIndent var =
+	case var of
+		VarNormal ident -> ident
+		VarArray ident size -> ident
 
 -- funkcje pomocnicze
 
@@ -175,15 +171,7 @@ jvmMainMethod progName =
 
 getFileContent :: String -> IO(String)
 getFileContent fileName = do
-	file <- openFile fileName ReadMode
-	content <- hGetContents file
-	-- import Control.Parallel.Strategies (rnf)
-	-- rnf content `seq` hClose content -- force the whole file to be read, then close
-	rnf content `seq` hClose file -- force the whole file to be read, then close
-	-- rnf means "reduce to normal form"
-	--putStr content
-	--putStr "!!!!!!"
-	--hClose file
+	content <- readFile fileName
 	return content
 
 getBuiltInFunsCode :: Context String
@@ -216,7 +204,7 @@ addTreeFunctionsDefs posFuns = do
 
 
 addTreeFunctionDef :: Function -> Context ()
-addTreeFunctionDef (Function (Pos _ ident) (Pos pos typ) args stms) = do
+addTreeFunctionDef (Function (Pos _ ident) (Pos pos typ) args stms nestedVars nestedFuns) = do
 	let argsTypes = map (\((Pos _ _),(Pos _ t)) -> t) args
 	addFunctionDef $ FunctionDef ident typ argsTypes
 
@@ -441,7 +429,7 @@ jvmCodeToJvmString (JvmNewLine) =
 
 compileFunction :: PosFunction -> Context String
 
-compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) = do
+compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms nestedVars nestedFuns)) = do
 	pushEmptySymbolTable
 
 	-- wyzerowanie licznika numerow zmiennych
@@ -488,9 +476,10 @@ compileFunction (Pos pos (Function (Pos _ ident) (Pos _ returnTyp) args stms)) =
 
 
 	where
-		addArgs :: [(PosIdent, PosType)] -> Context ()
+		addArgs :: [(PosVar, PosType)] -> Context ()
 		addArgs [] = return ()
-		addArgs (((Pos _ ident),(Pos _ typ)):args) = do
+		addArgs (((Pos _ var),(Pos _ typ)):args) = do
+			let ident = hahaVarToIndent var
 			addVarDef ident typ
 			addArgs args
 			return ()
@@ -711,15 +700,15 @@ compileDecl :: Type -> PosDecl -> Context Code
 compileDecl typ (Pos pos (Decl (Pos _ ident) maybeExp)) = do
 	case maybeExp of
 		Nothing -> do
-			addVarDef ident typ
+			addVarDef (hahaVarToIndent ident) typ
 			return []
 
 		Just posExp -> do
 			(expTyp, expCode) <- compileExp posExp
 
-			addVarDef ident typ
+			addVarDef (hahaVarToIndent ident) typ
 
-			(storeTyp, storeCode) <- codeJvmStore ident
+			(storeTyp, storeCode) <- codeJvmStore (hahaVarToIndent ident)
 
 			return $ expCode ++ 
 					 storeCode
@@ -731,7 +720,7 @@ compileAssig :: PosAssig -> Context (Type, Code)
 compileAssig (Pos pos (AssigEq (Pos _ ident) posExp)) = do
 	(expType, expCode) <- compileExp posExp
 		
-	(storeTyp, storeCode) <- codeJvmStore ident
+	(storeTyp, storeCode) <- codeJvmStore (hahaVarToIndent ident)
 
 	return $ (expType,
 			 expCode ++
@@ -741,8 +730,8 @@ compileAssig (Pos pos (AssigEq (Pos _ ident) posExp)) = do
 
 						
 compileAssig (Pos pos (AssigInc (Pos _ ident))) = do
-	(loadTyp, loadCode) <- codeJvmLoad ident
-	(storeTyp, storeCode) <- codeJvmStore ident
+	(loadTyp, loadCode) <- codeJvmLoad (hahaVarToIndent ident)
+	(storeTyp, storeCode) <- codeJvmStore (hahaVarToIndent ident)
 	return $ (TypeInt, loadCode ++
 					   [JvmConstInt 1] ++
 					   [JvmArithOp Add TypeInt] ++
@@ -751,8 +740,8 @@ compileAssig (Pos pos (AssigInc (Pos _ ident))) = do
 					   )
 
 compileAssig (Pos pos (AssigDec (Pos _ ident))) = do
-	(loadTyp, loadCode) <- codeJvmLoad ident
-	(storeTyp, storeCode) <- codeJvmStore ident
+	(loadTyp, loadCode) <- codeJvmLoad (hahaVarToIndent ident)
+	(storeTyp, storeCode) <- codeJvmStore (hahaVarToIndent ident)
 	return $ (TypeInt, loadCode ++
 					   [JvmConstInt 1] ++
 					   [JvmArithOp Sub TypeInt] ++
@@ -939,7 +928,7 @@ compileExp (Pos pos (ExpCallFunc (Pos _ funName) exps)) = do
 
 		
 compileExp (Pos pos (ExpVar (Pos _ ident))) = do
-	codeJvmLoad ident
+	codeJvmLoad (hahaVarToIndent ident)
 
 compileExp (Pos pos (ExpExp posExp)) = do
 	(expTyp, expCode) <- compileExp posExp

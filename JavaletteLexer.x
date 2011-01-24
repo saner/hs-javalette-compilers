@@ -35,10 +35,13 @@ tokens :-
 <0> @string { mkTokenArg (TStringLiteral . init . tail) }
 <0> "(" { mkToken TLeftParen }
 <0> ")" { mkToken TRightParen }
+<0> "[" { mkToken TLeftSqBracket }
+<0> "]" { mkToken TRightSqBracket }
 <0> "{" { mkToken TLeftBrace }
 <0> "}" { mkToken TRightBrace }
 <0> "," { mkToken TComma }
 <0> ";" { mkToken TSemicolon }
+<0> ":" { mkToken TColon }
 <0> "=" { mkToken TAssignSign }
 <0> "++"    { mkToken TIncrement }
 <0> "--"    { mkToken TDecrement }
@@ -78,10 +81,13 @@ data Token = TInt
             | TIdent String
             | TLeftParen
             | TRightParen
+            | TLeftSqBracket
+            | TRightSqBracket
             | TLeftBrace
             | TRightBrace
             | TComma
             | TSemicolon
+            | TColon
             | TAssignSign
             | TIncrement
             | TDecrement

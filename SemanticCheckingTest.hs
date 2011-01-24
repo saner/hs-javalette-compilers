@@ -13,6 +13,7 @@ import SemanticChecking
 
 
 
+{-
 testAddingWarnings = do
 	let state = ([Map.empty], [])
 	let m = Warning "hej" (1,1)
@@ -21,17 +22,18 @@ testAddingWarnings = do
 
 testAddFindSymbol = do
 	let state = ([Map.empty], [])
-	let s = VarSymbol "Start" TypeInt
+	let s = VarNormalSymbol "Start" TypeInt
 	let endState = evalState ( (addSymbol s) >> (addSymbol s) >> (findIdentSymbol "Start")) state
 	putStrLn $ show endState
 
 testPushPopSymbolTable = do
 	let state = ([Map.empty], [])
-	let s = VarSymbol "Start" TypeInt
-	let t = VarSymbol "Start" TypeBoolean
+	let s = VarNormalSymbol "Start" TypeInt
+	let t = VarNormalSymbol "Start" TypeBoolean
 	let endState = execState ( pushEmptySymbolTable >> (addSymbol t) >> pushEmptySymbolTable >> (addSymbol s) >> (addSymbol s) >> (findIdentSymbol "Start")) state
 
 	putStrLn $ show endState
+	-}
 
 printMessages messages = do
 	let warnings = filter (\m -> case m of Warning _ _ -> True; Error _ _ -> False) messages
