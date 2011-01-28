@@ -13,31 +13,8 @@ import qualified Data.Map as Map
 import JavaletteLexer
 import JavaletteParser
 import SemanticChecking
-import JVMCompiler
+import X86Compiler
 
-
-{-
-testAddingWarnings = do
-	let state = ([Map.empty], [])
-	let m = Warning "hej" (1,1)
-	let endState = execState ( (addMessage m) >> (addMessage m)) state
-	putStrLn $ show endState
-
-testAddFindSymbol = do
-	let state = ([Map.empty], [])
-	let s = VarSymbol "Start" TypeInt
-	let endState = evalState ( (addSymbol s) >> (addSymbol s) >> (findIdentSymbol "Start")) state
-	putStrLn $ show endState
-
-testPushPopSymbolTable = do
-	let state = ([Map.empty], [])
-	let s = VarSymbol "Start" TypeInt
-	let t = VarSymbol "Start" TypeBoolean
-	let endState = execState ( pushEmptySymbolTable >> (addSymbol t) >> pushEmptySymbolTable >> (addSymbol s) >> (addSymbol s) >> (findIdentSymbol "Start")) state
-
-	putStrLn $ show endState
-
-		-}
 printMessages messages = do
 	let warnings = filter (\m -> case m of Warning _ _ -> True; Error _ _ -> False) messages
 	let errors = filter (\m -> case m of Warning _ _ -> False; Error _ _ -> True) messages
@@ -55,7 +32,7 @@ getProgInfo :: String -> (Bool,String,String,String)
 getProgInfo file =
     let posDs = (head (take 1 (elemIndices '.' file)))
         posSs = (elemIndices '/' file)
-        fileName = (take posDs file) ++ ".j"
+        fileName = (take posDs file) ++ ".s"
         progName = case length posSs of
 						0 -> (take posDs file) 
 						_ ->
@@ -88,8 +65,8 @@ main = do
 					let (state, messages) = execState (checkProgram parseTree) ([],[])
 					if (length messages) == 0
 						then do
-							let programCode = evalState (compileProgram progName parseTree) (progName, 0, Map.empty, [])
+							let programCode = compileProgram parseTree
 							case toFile of
 								False -> putStrLn programCode
-								True -> writeFile (fileName) programCode
+								True -> writeFile fileName programCode
 						else printMessages messages

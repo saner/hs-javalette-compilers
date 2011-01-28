@@ -565,7 +565,7 @@ compileAssig (Pos pos (AssigDec (Pos _ var))) = do
 	tacName <- findVarTacName ident
 
 	return $ (Var tacName, 
-					[TacBinOpCopy tacName Add (Var tacName) (ConstInt 1)])
+					[TacBinOpCopy tacName Sub (Var tacName) (ConstInt 1)])
 
 -- Exp
 compileExp :: PosExp -> Context (OpArg, Code)

@@ -542,13 +542,17 @@ checkAssig (Pos pos (AssigEq (Pos posA var) posExp)) = do
 							else do 
 									addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
 									return expType
-				(VarArraySymbol sId sTyp sSize,VarArray uId uSize,RetVar eType) -> -- przypisanie: a[1] = b
+				(VarArraySymbol sId sTyp sSize,VarArray uId uIndex,RetVar eType) -> -- przypisanie: a[1] = b
 						if compatibleAssigTypes (RetVar sTyp) expType
-							then return $ (RetVar sTyp)
+							then case uIndex of
+									Left index -> return $ RetVar sTyp
+									Right indexIdent -> do
+												assertExistsVarNormal indexIdent pos
+												return $ RetVar sTyp
 							else do 
 									addMessage (Error ("Nie mozna dokonac przypisania na zmienna '" ++ ident ++ "', zle typy ") posA)
 									return expType
-				(VarNormalSymbol sId sTyp,VarArray uId uType,RetVar eType) -> do
+				(VarNormalSymbol sId sTyp,VarArray uId uIndex,RetVar eType) -> do
 								addMessage (Error ("Zmienna '" ++ ident ++ "' nie jest tablica") posA)
 								return expType
 				(_,_,_) -> do

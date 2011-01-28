@@ -10,25 +10,27 @@ Maciej £Lopatka
 Zaimplementowano:
 
 + frontend
+    + typecast 
+	+ przypisanie jako wyrazenie
+	+ tablice
+    + funkcje zagniezdzone (przyklady w katalogu examples/nextedfunctions)
 + backend
   + jvm
-    + typecast : f + b
-	+ przypisanie jako wyrazenie : f + b
-	+ tablice : f
+    + typecast
+	+ przypisanie jako wyrazenie
   + kod czworkowy
+  + llvm
+  + x86 (czesciowo)
 
 
-Program przechodzi wszystkie testy.
+Programy przechodzi wszystkie testy.
 
-
-Uwaga!
-W ciagu kilku dni dostarcze poprawiona wersje.
 
 --------------------------------------------------------------------------------
 
 Kompilacja
 
-Kompilator mozna skompilowac poleceniem make.
+Kompilatory mozna skompilowac poleceniem make.
 
 
 --------------------------------------------------------------------------------
@@ -38,7 +40,8 @@ Sposob uruchomienia:
 JVM
 
 0. Automatycznie testy z grupy examples/good sa uruchamiane 
-   za pomoca skryptu test.sh
+   za pomoca skryptu test_jvm_core.sh, a rozszerzenia za pomoca test_jvm_ext_asex.sh
+   oraz test_jvm_ext_type.sh
 
 1. Program przyjmuje jako parametr nazwe pliku generujac program o nazwie 
    generowanej na podstawie nazwy pliku.
@@ -55,4 +58,39 @@ Kod czworkowy
    Jesli nie dostarczy sie jako parametr nazwy pliku to program oczekuje
    podania kodu na standardowe wej-wyj, i na nim wypisze wygenerowany kod.
 
+
+LLVM
+
+0. Automatycznie testy z grupy examples/good sa uruchamiane 
+   za pomoca skryptu test_llvm_core_clean.sh
+   Skrypt testowy zakalda ze programy lli i llvm-as sa
+   widoczne w srodowisku.
+
+1. Program przyjmuje jako parametr nazwe pliku generujac kod LLVM 
+   do pliku o rozszerzeniu .ll z nazwa na podstawie nazwy pliku wejsciowego.
+
+   Jesli nie dostarczy sie jako parametr nazwy pliku to program oczekuje
+   podania kodu na standardowe wej-wyj, i na nim wypisze wygenerowany kod.
+
+
+X86
+0. W kompilatorze z86 duzej czesci jest zrobione wszystko dla intow, 
+   dla pozostalych typow nie dziala nic.
+
+   Plik JavaletteStdLibBackend.s zawiera deklaracje wlaczane do
+   kompilacji programu.
+   Plik JavaletteStdLib.s zawiera  deklaracje funkcji wbudowanych.
+   
+
+    Przyklad kompilacji programu:
+    cat test.jl | X86CompilerTest > test.s
+    gcc -a test.s JavaletteStdLib.s
+
+
+- wywolywanie funkcji, w tym: printInt(), readInt()
+- ify, while, for
+- deklaracje zmiennych 
+
+
 --------------------------------------------------------------------------------
+
