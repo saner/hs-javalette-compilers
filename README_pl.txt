@@ -13,7 +13,7 @@ Zaimplementowano:
     + typecast 
 	+ przypisanie jako wyrazenie
 	+ tablice
-    + funkcje zagniezdzone (przyklady w katalogu examples/nextedfunctions)
+    + funkcje zagniezdzone
 + backend
   + jvm
     + typecast
@@ -25,6 +25,31 @@ Zaimplementowano:
 
 Programy przechodzi wszystkie testy.
 
+--------------------------------------------------------------------------------
+
+Tablice
+int k[3];
+k[1] = 3;
+int m = k[1];
+
+int k2[3];
+k2 = k; // powoduje kopiowanie jednej tablicy do drugiej, a nie przez referencje
+// czyli takie cos jest niedozwolone
+int k4[5];
+k4 = k2; // k4 i k2 nie mieszcza tyle samo elementow
+
+Funckje zagniezdzone (duzo przykladow w przyklady w katalogu examples/nextedfunctions)
+int one
+[ int k = 32; // deklaracje zmiennych
+:
+  int two() // deklaracje funkcji
+  {
+   return 2;
+  }
+]
+{
+	return 1;
+}
 
 --------------------------------------------------------------------------------
 
